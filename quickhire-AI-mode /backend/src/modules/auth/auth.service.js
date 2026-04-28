@@ -75,7 +75,31 @@ async function sendSms(mobile, body) {
     logger.info({ mobile, body }, '[MOCK SMS]');
     return;
   }
-  // TODO: integrate MSG91 / SNS
+
+  if (env.SMS_PROVIDER === 'msg91') {
+    if (!env.MSG91_AUTH_KEY) {
+      logger.warn('MSG91_AUTH_KEY not set — OTP not sent');
+      return;
+    }
+    // Extract just the OTP digits from the body for MSG91 OTP API
+    const otpMatch = body.match(/\b(\d{4,6})\b/);
+    const otp = otpMatch ? otpMatch[1] : body;
+    const mobile91 = `91${mobile}`; // prepend India country code
+
+    try {
+      const url = `https://api.msg91.com/api/v5/otp?authkey=${env.MSG91_AUTH_KEY}&mobile=${mobile91}&otp=${otp}&otp_expiry=5&invisible=0`;
+      const res = await fetch(url, { method: 'GET', headers: { 'Accept': 'application/json' } });
+      const data = await res.json().catch(() => ({}));
+      if (data.type === 'success') {
+        logger.info({ mobile }, 'MSG91 OTP sent');
+      } else {
+        logger.warn({ mobile, data }, 'MSG91 OTP send failed');
+      }
+    } catch (e) {
+      logger.error({ err: e.message, mobile }, 'MSG91 request failed');
+    }
+    return;
+  }
 }
 
 function signAccessToken({ userId, role, sessionId }) {
