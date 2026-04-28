@@ -36,32 +36,24 @@ function memExpire(key, ttlSeconds) {
 }
 function memDel(key) { memStore.delete(key); }
 
-async function isRedisAlive() {
-  try { await redis.ping(); return true; } catch { return false; }
-}
-
+// Try Redis directly — fall back to memory only if it throws (no ping overhead)
 async function kv_incr(key) {
-  if (await isRedisAlive()) return redis.incr(key);
-  return memIncr(key);
+  try { return await redis.incr(key); } catch { return memIncr(key); }
 }
 async function kv_expire(key, ttl) {
-  if (await isRedisAlive()) return redis.expire(key, ttl);
-  memExpire(key, ttl);
+  try { await redis.expire(key, ttl); } catch { memExpire(key, ttl); }
 }
 async function kv_set(key, value, ...args) {
-  if (await isRedisAlive()) return redis.set(key, value, ...args);
-  // parse EX ttl from args: ['EX', seconds]
+  try { await redis.set(key, value, ...args); return; } catch {}
   const exIdx = args.findIndex(a => String(a).toUpperCase() === 'EX');
   const ttl = exIdx !== -1 ? Number(args[exIdx + 1]) : null;
   memSet(key, value, ttl);
 }
 async function kv_get(key) {
-  if (await isRedisAlive()) return redis.get(key);
-  return memGet(key);
+  try { return await redis.get(key); } catch { return memGet(key); }
 }
 async function kv_del(key) {
-  if (await isRedisAlive()) return redis.del(key);
-  memDel(key);
+  try { await redis.del(key); } catch { memDel(key); }
 }
 
 function genOtp(len = env.OTP_LENGTH) {
@@ -92,17 +84,19 @@ async function sendSms(mobile, body) {
       const res = await fetch(url, {
         method: 'GET',
         headers: { 'Accept': 'application/json' },
-        signal: AbortSignal.timeout(8000), // 8s timeout
+        signal: AbortSignal.timeout(8000),
       });
       const text = await res.text();
       if (res.ok && !text.toLowerCase().includes('error')) {
         logger.info({ mobile }, 'MSG91 SMS sent');
-      } else {
-        logger.warn({ mobile, response: text }, 'MSG91 SMS failed');
+        return;
       }
+      logger.warn({ mobile, response: text }, 'MSG91 SMS failed — falling back to log');
     } catch (e) {
-      logger.error({ err: e.message, mobile }, 'MSG91 request error');
+      logger.warn({ err: e.message, mobile }, 'MSG91 request error — falling back to log');
     }
+    // Fallback: always log OTP so it's visible in Render logs if SMS fails
+    logger.info({ mobile, body }, '[OTP FALLBACK LOG]');
     return;
   }
 }
