@@ -46,7 +46,7 @@ export const DEFAULT_CURRENCY = "INR";
 // EU members default to 20% VAT; you can refine per-country if needed.
 export const COUNTRY_REGIONS = {
   // South Asia
-  IN: { currency: "INR", locale: "hi", taxRate: 0.18, taxLabel: "GST" },
+  IN: { currency: "INR", locale: "en", taxRate: 0.18, taxLabel: "GST" },
   // North America
   US: { currency: "USD", locale: "en", taxRate: 0,    taxLabel: "Sales Tax" },
   CA: { currency: "CAD", locale: "en", taxRate: 0.13, taxLabel: "HST" },
