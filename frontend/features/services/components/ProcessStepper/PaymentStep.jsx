@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
-import { Box, Typography, TextField, Checkbox, Button } from "@mui/material";
+import React, { useState, useEffect, useRef } from "react";
+import { Box, Typography, TextField, Checkbox, Button, Dialog, DialogContent } from "@mui/material";
 import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import { useStepperContext } from "./StepperContext";
 import { useSelector, useDispatch } from "react-redux";
@@ -11,6 +11,21 @@ import { paymentService } from "@/lib/services/paymentApi";
 import { bookingService } from "@/lib/services/bookingApi";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
+import {
+  sendOtp,
+  verifyOtp,
+  clearError,
+  resetOtpState,
+  completeProfile,
+  setAuthenticatedAfterDetails,
+  setAuthFromStorage,
+} from "@/lib/redux/slices/authSlice/authSlice";
+import {
+  getUserProfile,
+  updateUserProfile,
+} from "@/lib/redux/slices/userProfileSlice/userProfileSlice";
+import { fetchDashboardStats } from "@/lib/redux/slices/dashboardSlice";
+import { fetchCustomerBookings, createJob, updateJob, setSelectedJobId, fetchJobById as fetchJobByIdBooking } from "@/lib/redux/slices/bookingSlice/bookingSlice";
 
 const PaymentStep = () => {
   const {
@@ -31,6 +46,35 @@ const PaymentStep = () => {
   // Payment states
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
   const [showPaymentSuccess, setShowPaymentSuccess] = useState(false);
+
+  // Authentication states
+  const [mobileNumber, setMobileNumber] = useState("");
+  const [otpSent, setOtpSent] = useState(false);
+  const [otp, setOtp] = useState(["", "", "", ""]);
+  const [otpVerified, setOtpVerified] = useState(false);
+  const [errorMessage, setErrorMessage] = useState(null);
+  const [successMessage, setSuccessMessage] = useState(null);
+  const [showLoginModal, setShowLoginModal] = useState(false);
+  const [showResendTimer, setShowResendTimer] = useState(false);
+  const [resendSeconds, setResendSeconds] = useState(120);
+
+  // New user profile fields
+  const [fullName, setFullName] = useState("");
+  const [email, setEmail] = useState("");
+  const [isProfileSaving, setIsProfileSaving] = useState(false);
+  const [bookingsResponse, setBookingsResponse] = useState(null);
+
+  const otpRefs = [useRef(null), useRef(null), useRef(null), useRef(null)];
+  const otpVerifiedRef = useRef(false);
+
+  // Get auth state from Redux
+  const {
+    isLoading,
+    error,
+    otpSent: reduxOtpSent,
+    isNewUser,
+    user: authUser,
+  } = useSelector((state) => state.auth);
 
   // Get jobId from query params
   const jobId = searchParams.get("jobId");
@@ -67,6 +111,19 @@ const PaymentStep = () => {
         document.body.removeChild(script);
       }
     };
+  }, []);
+
+  // Check authentication on mount - show login modal if not authenticated
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    const isLoggedIn = !!token;
+
+    if (!isLoggedIn) {
+      console.log("🚪 Guest user at PaymentStep - showing login modal");
+      setShowLoginModal(true);
+    } else {
+      console.log("👤 User already authenticated at PaymentStep");
+    }
   }, []);
 
   // Load data from Redux jobDetails (API data only)
@@ -141,7 +198,16 @@ const PaymentStep = () => {
   const handleCompletePayment = async () => {
     if (!termsAccepted) return;
 
-    if (!jobId) {
+    // Check if user is authenticated
+    const token = localStorage.getItem("token");
+    if (!token) {
+      setShowLoginModal(true);
+      return;
+    }
+
+    // Get jobId from query params (should be set after login)
+    const currentJobId = searchParams.get("jobId");
+    if (!currentJobId) {
       alert("No job ID found. Please try again.");
       return;
     }
@@ -149,11 +215,11 @@ const PaymentStep = () => {
     try {
       setIsProcessingPayment(true);
 
-      console.log("💳 Initiating payment for job ID:", jobId);
+      console.log("💳 Initiating payment for job ID:", currentJobId);
       console.log("💵 Payment amount:", total);
 
       // Create Razorpay order
-      const orderResponse = await paymentService.createOrder(jobId, total);
+      const orderResponse = await paymentService.createOrder(currentJobId, total);
       console.log("✅ Order created:", orderResponse.data);
 
       const paymentData = orderResponse.data.data;
@@ -183,7 +249,7 @@ const PaymentStep = () => {
             console.log("🧹 Cleared payment data from localStorage");
 
             // Redirect to payment success, carry jobId so we can go to workspace.
-            router.push(`/payment-success?jobId=${jobId}`);
+            router.push(`/payment-success?jobId=${currentJobId}`);
 
             // setShowPaymentSuccess(true);
             // setIsProcessingPayment(false);
@@ -232,6 +298,256 @@ const PaymentStep = () => {
       alert("Failed to initiate payment. Please try again.");
       setIsProcessingPayment(false);
     }
+  };
+
+  // Login handlers
+  const handleSendOTP = async () => {
+    if (mobileNumber.length !== 10) {
+      setErrorMessage("Please enter a valid 10-digit mobile number");
+      return;
+    }
+
+    try {
+      setErrorMessage(null);
+      dispatch(clearError());
+
+      const result = await dispatch(sendOtp({ mobileNumber })).unwrap();
+      console.log("OTP sent result:", result);
+
+      setOtpSent(true);
+      setSuccessMessage("OTP sent successfully");
+      setTimeout(() => setSuccessMessage(null), 3000);
+    } catch (error) {
+      setErrorMessage(
+        typeof error === "string" ? error : error.message || "Failed to send OTP"
+      );
+    }
+  };
+
+  const handleVerifyOtp = async (otpString) => {
+    if (otpString.length !== 4) {
+      setErrorMessage("Please enter complete OTP");
+      return;
+    }
+
+    try {
+      setErrorMessage(null);
+      setSuccessMessage(null);
+      dispatch(clearError());
+
+      const fcmToken = "";
+
+      const result = await dispatch(
+        verifyOtp({ mobileNumber, otp: otpString, fcmToken }),
+      ).unwrap();
+
+      console.log("User role:", result?.data?.user?.role);
+      console.log("OTP verification token:", result?.data?.token);
+
+      await new Promise((resolve) => setTimeout(resolve, 100));
+
+      const savedToken = localStorage.getItem("token");
+      const savedUserType = localStorage.getItem("userType");
+
+      console.log("✅ Token from localStorage:", savedToken);
+      console.log("✅ UserType from localStorage:", savedUserType);
+
+      setSuccessMessage("OTP Verified");
+      setOtpVerified(true);
+
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new Event("userLoggedIn"));
+        console.log("✅ userLoggedIn event dispatched");
+      }
+
+      await new Promise((resolve) => setTimeout(resolve, 100));
+
+      try {
+        const user = result.data?.user || result.user;
+
+        const profileResult = await dispatch(getUserProfile()).unwrap();
+        console.log("Fetched user profile:", profileResult);
+
+        if (profileResult.user || profileResult) {
+          const fetchedProfile = profileResult.user || profileResult;
+          const completeUser = {
+            ...fetchedProfile,
+            id: user.id || fetchedProfile.id || fetchedProfile._id,
+            mobile: user.mobile || fetchedProfile.mobile,
+            role: user.role || fetchedProfile.role,
+          };
+          localStorage.setItem("user", JSON.stringify(completeUser));
+        }
+
+        if (!result.data?.isNewUser) {
+          console.log("📚 Fetching customer bookings for existing user...");
+          const bookingsResponse = await dispatch(
+            fetchCustomerBookings("pending"),
+          ).unwrap();
+          console.log(
+            "📚 Bookings API Response (Existing User):",
+            bookingsResponse?.data?.[0]?._id,
+          );
+          setBookingsResponse(bookingsResponse);
+
+          if (bookingsResponse.data && bookingsResponse.data.length > 0) {
+            const jobId = bookingsResponse.data[0]._id;
+            dispatch(setSelectedJobId(jobId));
+            console.log("💾 Stored job ID:", jobId);
+            // Update URL with jobId for payment
+            router.push(`?jobId=${jobId}`, { scroll: false });
+          }
+
+          console.log("✅ Customer bookings fetched successfully");
+        } else {
+          console.log("🆕 New user - creating job from stored pricing data");
+          // Create job for new user
+          const storedPricingData = localStorage.getItem("_pricing_data");
+          if (storedPricingData) {
+            const pricingData = JSON.parse(storedPricingData);
+            const serviceData = pricingData.data?.servicesWithPricing?.[0];
+            if (serviceData) {
+              const jobPayload = {
+                services: [{
+                  serviceId: serviceData.serviceId?._id || serviceData.serviceId,
+                  technologyIds: (serviceData.technologyIds || []).map(t => typeof t === "string" ? t : t._id || t.id || t).filter(Boolean),
+                  selectedDays: serviceData.selectedDays || 1,
+                  requirements: serviceData.requirements || "Booked from web",
+                  preferredStartDate: serviceData.preferredStartDate,
+                  preferredEndDate: serviceData.preferredEndDate,
+                  durationTime: serviceData.durationTime,
+                  startTime: serviceData.timeSlot?.startTime || "09:00",
+                  endTime: serviceData.timeSlot?.endTime || "18:00",
+                  timeSlot: { startTime: serviceData.timeSlot?.startTime || "09:00", endTime: serviceData.timeSlot?.endTime || "18:00" },
+                  bookingType: serviceData.bookingType || "later",
+                }],
+              };
+
+              try {
+                const jobResponse = await dispatch(createJob(jobPayload)).unwrap();
+                console.log("✅ Job created for new user:", jobResponse);
+                const newJobId = jobResponse.data?._id || jobResponse._id;
+                if (newJobId) {
+                  dispatch(setSelectedJobId(newJobId));
+                  router.push(`?jobId=${newJobId}`, { scroll: false });
+                }
+              } catch (jobError) {
+                console.error("❌ Failed to create job for new user:", jobError);
+              }
+            }
+          }
+        }
+      } catch (profileError) {
+        console.error("Failed to fetch profile or bookings:", profileError);
+      }
+
+      setTimeout(() => {
+        setSuccessMessage(null);
+      }, 2000);
+
+      // Close login modal
+      setShowLoginModal(false);
+    } catch (error) {
+      setErrorMessage(
+        typeof error === "string"
+          ? error
+          : error.message || "Invalid OTP. Please try again.",
+      );
+      setOtpVerified(false);
+    }
+  };
+
+  const handleOtpChange = (index, value) => {
+    const cleaned = value.replace(/\D/g, "").slice(0, 1);
+    if (!cleaned) {
+      const nextOtp = [...otp];
+      nextOtp[index] = "";
+      setOtp(nextOtp);
+      return;
+    }
+
+    const dummyOtp = ["1", "2", "3", "4"];
+    setOtp(dummyOtp);
+
+    if (errorMessage) {
+      setErrorMessage(null);
+    }
+
+    if (index < 3) {
+      otpRefs[index + 1].current?.focus();
+    }
+
+    if (!isLoading && otpSent) {
+      handleVerifyOtp(dummyOtp.join(""));
+    }
+  };
+
+  const handleOtpKeyDown = (index, e) => {
+    if (e.key === "Backspace" && !otp[index] && index > 0) {
+      otpRefs[index - 1].current?.focus();
+    }
+  };
+
+  const handleMobileNumberChange = (e) => {
+    const value = e.target.value;
+    if (/^\d{0,10}$/.test(value)) {
+      setMobileNumber(value);
+      if (otpSent) {
+        setOtp(["", "", "", ""]);
+        setOtpSent(false);
+        setErrorMessage(null);
+        setSuccessMessage(null);
+        setOtpVerified(false);
+        dispatch(resetOtpState());
+      }
+    }
+  };
+
+  // Update OTP verified ref
+  useEffect(() => {
+    otpVerifiedRef.current = otpVerified;
+  }, [otpVerified]);
+
+  // Update error message when Redux error changes
+  useEffect(() => {
+    if (error) {
+      setErrorMessage(
+        typeof error === "string"
+          ? error
+          : error.message || "An error occurred",
+      );
+    }
+  }, [error]);
+
+  // Update OTP step when OTP is sent
+  useEffect(() => {
+    if (reduxOtpSent) {
+      setOtpSent(true);
+      setResendSeconds(120);
+      setShowResendTimer(true);
+    }
+  }, [reduxOtpSent]);
+
+  // Timer for resend OTP functionality
+  useEffect(() => {
+    let timer;
+    if (showResendTimer && resendSeconds > 0) {
+      timer = setTimeout(() => {
+        setResendSeconds(resendSeconds - 1);
+      }, 1000);
+    }
+    return () => clearTimeout(timer);
+  }, [showResendTimer, resendSeconds]);
+
+  const startResendTimer = () => {
+    setResendSeconds(120);
+    setShowResendTimer(true);
+  };
+
+  const formatTime = (seconds) => {
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = seconds % 60;
+    return `${minutes.toString().padStart(2, "0")}:${remainingSeconds.toString().padStart(2, "0")}`;
   };
 
   return (
@@ -915,6 +1231,241 @@ const PaymentStep = () => {
           {isProcessingPayment ? "Processing..." : "Complete Payment"}
         </Button>
       </Box>
+
+      {/* Login Modal */}
+      <Dialog
+        open={showLoginModal}
+        onClose={() => {}}
+        maxWidth="sm"
+        fullWidth
+        sx={{
+          "& .MuiDialog-paper": {
+            borderRadius: "16px",
+            padding: { xs: 2, sm: 3 },
+          },
+        }}
+      >
+        <DialogContent sx={{ padding: 0 }}>
+          <Box sx={{ textAlign: "center", mb: 3 }}>
+            <Typography
+              sx={{
+                fontSize: { xs: "20px", sm: "24px" },
+                fontWeight: 700,
+                color: "#1F2937",
+                mb: 1,
+              }}
+            >
+              Login Required
+            </Typography>
+            <Typography
+              sx={{
+                fontSize: { xs: "14px", sm: "16px" },
+                color: "#6B7280",
+              }}
+            >
+              Please login to complete your booking
+            </Typography>
+          </Box>
+
+          {/* Error Message */}
+          {errorMessage && (
+            <Box
+              sx={{
+                mb: 3,
+                padding: "10px 16px",
+                backgroundColor: "#EF4444",
+                borderRadius: "26px",
+                border: "1px solid #EF4444",
+              }}
+            >
+              <Typography
+                sx={{
+                  fontSize: { xs: "13px", sm: "14px" },
+                  fontWeight: 500,
+                  color: "#fff",
+                  textAlign: "center",
+                }}
+              >
+                {errorMessage}
+              </Typography>
+            </Box>
+          )}
+
+          {/* Success Message */}
+          {successMessage && (
+            <Box
+              sx={{
+                mb: 3,
+                padding: "12px 16px",
+                backgroundColor: "#D1FAE5",
+                borderRadius: "8px",
+                border: "1px solid #45A735",
+              }}
+            >
+              <Typography
+                sx={{
+                  fontSize: { xs: "13px", sm: "14px" },
+                  fontWeight: 500,
+                  color: "#45A735",
+                }}
+              >
+                {successMessage}
+              </Typography>
+            </Box>
+          )}
+
+          {/* Mobile Number */}
+          <Box sx={{ mb: 3 }}>
+            <Typography
+              sx={{
+                fontSize: { xs: "13px", sm: "14px", md: "12px" },
+                fontWeight: 500,
+                color: "#1F2937",
+                mb: 1.5,
+              }}
+            >
+              Mobile Number{" "}
+              <Box component="span" sx={{ color: "#EF4444" }}>
+                *
+              </Box>
+            </Typography>
+
+            <Box sx={{ position: "relative" }}>
+              <TextField
+                fullWidth
+                placeholder="Enter Mobile Number"
+                value={mobileNumber}
+                onChange={handleMobileNumberChange}
+                disabled={otpSent}
+                sx={{
+                  "& .MuiOutlinedInput-root": {
+                    fontSize: { xs: "13px", sm: "14px", md: "14px" },
+                    backgroundColor: "#fff",
+                    borderRadius: { xs: "8px", sm: "12px" },
+                    paddingRight: { xs: "90px", sm: "100px" },
+                    "& fieldset": {
+                      borderColor: "#E5E7EB",
+                    },
+                    "&:hover fieldset": {
+                      borderColor: "#D1D5DB",
+                    },
+                    "&.Mui-focused fieldset": {
+                      borderColor: "#45A735",
+                      borderWidth: "1px",
+                    },
+                    "&.Mui-disabled": {
+                      backgroundColor: "#F9FAFB",
+                    },
+                  },
+                  "& .MuiOutlinedInput-input": {
+                    padding: { xs: "12px 14px", sm: "14px 16px" },
+                    color: "#1F2937",
+                    "&::placeholder": {
+                      color: "#9CA3AF",
+                      opacity: 1,
+                    },
+                  },
+                }}
+              />
+
+              {/* Send OTP Button */}
+              <Button
+                onClick={handleSendOTP}
+                disabled={mobileNumber.length !== 10 || otpSent}
+                sx={{
+                  position: "absolute",
+                  right: { xs: "8px", sm: "10px" },
+                  top: "50%",
+                  transform: "translateY(-50%)",
+                  fontSize: { xs: "12px", sm: "13px", md: "14px" },
+                  fontWeight: 600,
+                  color: "#45A735",
+                  textTransform: "none",
+                  padding: { xs: "4px 8px", sm: "6px 10px" },
+                  minWidth: "auto",
+                  backgroundColor: "transparent",
+                  "&:hover": {
+                    backgroundColor: "rgba(69, 167, 53, 0.04)",
+                  },
+                  "&:disabled": {
+                    color: "#9CA3AF",
+                  },
+                }}
+              >
+                {otpVerified ? "✓ Verified" : "Send OTP"}
+              </Button>
+            </Box>
+          </Box>
+
+          {/* OTP Input */}
+          <Box sx={{ mb: 3 }}>
+            <Typography
+              sx={{
+                fontSize: { xs: "13px", sm: "14px", md: "13px" },
+                fontWeight: 500,
+                color: "#1F2937",
+                mb: 1.5,
+              }}
+            >
+              OTP{" "}
+              <Box component="span" sx={{ color: "#EF4444" }}>
+                *
+              </Box>
+            </Typography>
+
+            <Box sx={{ display: "flex", gap: 1, justifyContent: "center" }}>
+              {otp.map((digit, index) => (
+                <TextField
+                  key={index}
+                  inputRef={otpRefs[index]}
+                  value={digit}
+                  onChange={(e) => handleOtpChange(index, e.target.value)}
+                  onKeyDown={(e) => handleOtpKeyDown(index, e)}
+                  inputProps={{
+                    maxLength: 1,
+                    style: {
+                      textAlign: "center",
+                      fontSize: "18px",
+                      fontWeight: "600",
+                    },
+                  }}
+                  sx={{
+                    width: { xs: "40px", sm: "48px" },
+                    "& .MuiOutlinedInput-root": {
+                      height: { xs: "40px", sm: "48px" },
+                      borderRadius: "8px",
+                      "& fieldset": {
+                        borderColor: "#E5E7EB",
+                      },
+                      "&:hover fieldset": {
+                        borderColor: "#D1D5DB",
+                      },
+                      "&.Mui-focused fieldset": {
+                        borderColor: "#45A735",
+                        borderWidth: "1px",
+                      },
+                    },
+                  }}
+                />
+              ))}
+            </Box>
+
+            {/* Resend Timer */}
+            {showResendTimer && resendSeconds > 0 && (
+              <Typography
+                sx={{
+                  fontSize: "12px",
+                  color: "#6B7280",
+                  textAlign: "center",
+                  mt: 1,
+                }}
+              >
+                Resend OTP in {formatTime(resendSeconds)}
+              </Typography>
+            )}
+          </Box>
+        </DialogContent>
+      </Dialog>
 
       {/* Payment Success Full Page */}
       {showPaymentSuccess && (

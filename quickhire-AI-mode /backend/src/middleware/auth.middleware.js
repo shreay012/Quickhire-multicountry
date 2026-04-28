@@ -43,7 +43,7 @@ export async function authMiddleware(req, _res, next) {
 
   try {
         const claims = jwt.verify(token, env.JWT_PUBLIC_KEY, {
-                algorithms: ['RS256'],
+                algorithms: [env.JWT_ALGORITHM],
                 issuer: env.JWT_ISSUER,
                 audience: env.JWT_AUDIENCE,
         });

@@ -2,8 +2,8 @@
 // Separate from the user-facing mock axiosInstance so we don't break existing flows.
 import axios from 'axios';
 
-// ✅ QuickHire Backend URL — backend listens on :4000 and mounts routes under /api
-const BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api';
+// ✅ QuickHire Backend URL — backend listens on :4000 and mounts routes at root in local dev.
+const BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
 const TOKEN_KEY = 'qh_staff_token';
 const USER_KEY = 'qh_staff_user';

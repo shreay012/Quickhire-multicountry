@@ -195,26 +195,9 @@ const DetailsStep = () => {
   // Set up navigation callback when component mounts
   useEffect(() => {
     const callback = (proceedFunc) => {
-      // Check if OTP is verified before proceeding
-      if (!otpVerifiedRef.current) {
-        setErrorMessage("Please verify your mobile number with OTP first.");
-        return;
-      }
-
-      // If user is a new user, check if profile is filled and saved
-      if (isNewUser) {
-        setErrorMessage(
-          "Please fill and save your profile details to continue.",
-        );
-        return;
-      }
-
-      // User is existing user OR new user who saved profile
-      // Don't set authenticated yet - wait for modal interaction
-      // Save guest booking state before showing login modal
-      savePendingBooking();
-      proceedFuncRef.current = proceedFunc;
-      setShowModal(true);
+      // For guest users, don't require OTP verification - proceed to payment
+      // Login will happen at PaymentStep
+      proceedFunc();
     };
     setNavigationCallback(callback);
 
@@ -223,7 +206,7 @@ const DetailsStep = () => {
       setNavigationCallback(null);
       proceedFuncRef.current = null;
     };
-  }, [setNavigationCallback, router, isNewUser, dispatch, otpVerified]);
+  }, [setNavigationCallback]);
   const handleReviewCart = async () => {
     try {
       // Check if bookings exist

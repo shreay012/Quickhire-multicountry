@@ -23,7 +23,6 @@ import RemoveIcon from "@mui/icons-material/Remove";
 import AddIcon from "@mui/icons-material/Add";
 import { useSearchParams, useRouter } from "next/navigation";
 import { fetchHoursAvailability } from "@/lib/redux/slices/availabilitySlice/availabilitySlice";
-import { fetchPricing } from "@/lib/redux/slices/pricingSlice/pricingSlice";
 import {
   updateJob,
   fetchCustomerBookings,
@@ -1958,20 +1957,7 @@ const HoursStep = ({ selectedService: selectedServiceProp, serviceId } = {}) => 
             }
             try {
               setIsPricingLoading(true);
-
-              // Check if user is logged in by checking token
               const token = localStorage.getItem("token");
-
-              if (!token) {
-                alert("Please log in to continue with booking.");
-                router.push(
-                  `/login?next=${encodeURIComponent(
-                    typeof window !== "undefined" ? window.location.pathname : "/",
-                  )}`,
-                );
-                setIsPricingLoading(false);
-                return;
-              }
 
               if (token) {
                 // User is logged in - Fetch customer bookings to get jobId
@@ -2194,57 +2180,83 @@ const HoursStep = ({ selectedService: selectedServiceProp, serviceId } = {}) => 
                   alert(msg);
                 }
               } else {
-                // Guest user - use normal fetchPricing flow
-                console.log("👤 Guest user - Fetching pricing");
-                const resultAction = await dispatch(
-                  fetchPricing(pricingPayload),
+                // Guest user - compute pricing locally and continue without protected API
+                console.log("👤 Guest user - using local pricing data");
+                const subtotal = hourlyRate * durationTime * numDays;
+                const gstAmount = Math.round(subtotal * 0.18);
+                const totalPriceWithGst = subtotal + gstAmount;
+                const startDate =
+                  selectedAssignment === "instant"
+                    ? new Date().toISOString()
+                    : formatLocalSelectedDate(selectedDates[0]);
+
+                const guestPricingData = {
+                  data: {
+                    servicesWithPricing: [
+                      {
+                        serviceId: {
+                          _id: serviceId,
+                          name: activeService?.name || "",
+                        },
+                        technologyIds: techIds.map((id) => ({ _id: id })),
+                        selectedDays: numDays,
+                        requirements: "Selected from web v3",
+                        preferredStartDate: startDate,
+                        preferredEndDate: startDate,
+                        durationTime,
+                        startTime: selectedSlotDetails?.startTime || "09:00",
+                        endTime: selectedSlotDetails?.endTime || "18:00",
+                        timeSlot: {
+                          startTime: selectedSlotDetails?.startTime || "09:00",
+                          endTime: selectedSlotDetails?.endTime || "18:00",
+                        },
+                        bookingType: selectedAssignment || "later",
+                      },
+                    ],
+                    totalPricing: {
+                      basePrice: subtotal,
+                      gstAmount,
+                      totalPriceWithGst,
+                      discountAmount: 0,
+                    },
+                  },
+                };
+
+                if (selectedAssignment === "instant") {
+                  localStorage.setItem("_selected_date", new Date().toISOString());
+                  localStorage.setItem(
+                    "_selected_time_slot",
+                    JSON.stringify({
+                      startTime: selectedSlotDetails?.startTime || "",
+                      endTime: selectedSlotDetails?.endTime || "",
+                    }),
+                  );
+                } else {
+                  localStorage.setItem(
+                    "_selected_date",
+                    formatLocalSelectedDate(selectedDates[0]),
+                  );
+                  localStorage.setItem(
+                    "_selected_time_slot",
+                    JSON.stringify({
+                      startTime: selectedSlotDetails.startTime,
+                      endTime: selectedSlotDetails.endTime,
+                    }),
+                  );
+                }
+
+                localStorage.setItem("_selected_plan", selectedPlan);
+                localStorage.setItem(
+                  "_selected_assignment_type",
+                  selectedAssignment,
+                );
+                localStorage.setItem("_duration_time", durationTime.toString());
+                localStorage.setItem(
+                  "_pricing_data",
+                  JSON.stringify(guestPricingData),
                 );
 
-                if (fetchPricing.fulfilled.match(resultAction)) {
-                  // Store data in localStorage
-                  if (selectedAssignment === "instant") {
-                    localStorage.setItem(
-                      "_selected_date",
-                      new Date().toISOString(),
-                    );
-                    localStorage.setItem(
-                      "_selected_time_slot",
-                      JSON.stringify({
-                        startTime: selectedSlotDetails?.startTime || "",
-                        endTime: selectedSlotDetails?.endTime || "",
-                      }),
-                    );
-                  } else {
-                    localStorage.setItem(
-                      "_selected_date",
-                      formatLocalSelectedDate(selectedDates[0]),
-                    );
-                    localStorage.setItem(
-                      "_selected_time_slot",
-                      JSON.stringify({
-                        startTime: selectedSlotDetails.startTime,
-                        endTime: selectedSlotDetails.endTime,
-                      }),
-                    );
-                  }
-                  localStorage.setItem("_selected_plan", selectedPlan);
-                  localStorage.setItem(
-                    "_selected_assignment_type",
-                    selectedAssignment,
-                  );
-                  localStorage.setItem(
-                    "_duration_time",
-                    durationTime.toString(),
-                  );
-                  localStorage.setItem(
-                    "_pricing_data",
-                    JSON.stringify(resultAction.payload),
-                  );
-
-                  nextStep();
-                } else {
-                  alert("Failed to get pricing. Please try again.");
-                }
+                nextStep();
               }
             } catch (error) {
               console.error("❌ Error:", error);

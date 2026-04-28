@@ -44,7 +44,7 @@ export const refresh = asyncHandler(async (req, res) => {
     if (accessToken) {
       try {
         const claims = jwt.verify(accessToken, env.JWT_PUBLIC_KEY, {
-          algorithms: ['RS256'],
+          algorithms: [env.JWT_ALGORITHM],
           issuer: env.JWT_ISSUER,
           audience: env.JWT_AUDIENCE,
           ignoreExpiration: true,

@@ -28,7 +28,7 @@ export function attachSocketIO(httpServer) {
       const token = socket.handshake.auth?.token || socket.handshake.query?.token;
       if (!token) return next(new Error('UNAUTHORIZED'));
       const claims = jwt.verify(token, env.JWT_PUBLIC_KEY, {
-        algorithms: ['RS256'],
+        algorithms: [env.JWT_ALGORITHM],
         issuer: env.JWT_ISSUER,
         audience: env.JWT_AUDIENCE,
       });

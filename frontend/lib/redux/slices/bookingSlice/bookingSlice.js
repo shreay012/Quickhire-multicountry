@@ -1,6 +1,14 @@
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import { bookingService } from "../../../services/bookingApi";
 
+const getErrorPayload = (error, fallbackMessage) => {
+  const responseData = error?.response?.data;
+  if (responseData) {
+    return responseData.message || responseData.error || responseData || fallbackMessage;
+  }
+  return error?.message || fallbackMessage;
+};
+
 // Async Thunks
 export const fetchServiceById = createAsyncThunk(
   "booking/fetchServiceById",
@@ -62,7 +70,7 @@ export const fetchJobById = createAsyncThunk(
       return response.data?.data !== undefined ? response.data.data : response.data;
     } catch (error) {
       return rejectWithValue(
-        error.response?.data || "Failed to fetch job details",
+        getErrorPayload(error, "Failed to fetch job details"),
       );
     }
   },
