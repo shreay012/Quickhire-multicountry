@@ -91,12 +91,16 @@ const run = async () => {
   // ── 2. SERVICES ────────────────────────────────────────────────────────────
   logger.info('seeding services…');
 
+  // Helper: build technologies array with stable ObjectIds
+  const tech = (names) => names.map(name => ({ _id: new ObjectId(), name }));
+
   const SERVICES = [
     { slug: 'react-developer', name: 'React Developer', category: 'Frontend Development',
       description: 'Hire a senior React developer for your web app — component architecture, performance optimization, and modern hooks-based development.',
       shortDescription: 'Senior React.js development for web apps',
       hourlyRate: 800, currency: 'INR', minHours: 4, maxHours: 40,
       skills: ['React', 'JavaScript', 'TypeScript', 'Redux', 'Next.js'],
+      technologies: tech(['React.js', 'Next.js', 'TypeScript', 'Redux', 'JavaScript', 'Tailwind CSS', 'GraphQL', 'REST API']),
       image: '/images/services/react.png', active: true, featured: true,
       experienceYears: 5, rating: 4.8, totalBookings: 120 },
 
@@ -105,6 +109,7 @@ const run = async () => {
       shortDescription: 'Node.js APIs, microservices & integrations',
       hourlyRate: 800, currency: 'INR', minHours: 4, maxHours: 40,
       skills: ['Node.js', 'Express', 'MongoDB', 'PostgreSQL', 'REST API'],
+      technologies: tech(['Node.js', 'Express.js', 'REST API', 'GraphQL', 'MongoDB', 'PostgreSQL', 'Socket.IO', 'Microservices']),
       image: '/images/services/node.png', active: true, featured: true,
       experienceYears: 5, rating: 4.7, totalBookings: 98 },
 
@@ -113,6 +118,7 @@ const run = async () => {
       shortDescription: 'Cross-platform iOS & Android apps with Flutter',
       hourlyRate: 700, currency: 'INR', minHours: 4, maxHours: 40,
       skills: ['Flutter', 'Dart', 'Firebase', 'Android', 'iOS'],
+      technologies: tech(['Flutter', 'Dart', 'Firebase', 'Push Notifications', 'Android', 'iOS', 'REST API', 'GetX / Riverpod']),
       image: '/images/services/flutter.png', active: true, featured: true,
       experienceYears: 4, rating: 4.8, totalBookings: 85 },
 
@@ -121,6 +127,7 @@ const run = async () => {
       shortDescription: 'CI/CD, Docker, K8s, AWS infrastructure',
       hourlyRate: 1000, currency: 'INR', minHours: 4, maxHours: 40,
       skills: ['AWS', 'Docker', 'Kubernetes', 'Terraform', 'Jenkins'],
+      technologies: tech(['AWS', 'Docker', 'Kubernetes', 'Terraform', 'Jenkins', 'GitHub Actions', 'Linux', 'Monitoring & Alerts']),
       image: '/images/services/devops.png', active: true, featured: true,
       experienceYears: 6, rating: 4.9, totalBookings: 67 },
 
@@ -129,6 +136,7 @@ const run = async () => {
       shortDescription: 'Figma designs, wireframes & design systems',
       hourlyRate: 600, currency: 'INR', minHours: 4, maxHours: 40,
       skills: ['Figma', 'UI Design', 'UX Research', 'Prototyping', 'Design Systems'],
+      technologies: tech(['Figma', 'Wireframing', 'Prototyping', 'Design Systems', 'UX Research', 'User Testing', 'Mobile UI', 'Web UI']),
       image: '/images/services/design.png', active: true, featured: false,
       experienceYears: 4, rating: 4.7, totalBookings: 74 },
 
@@ -137,6 +145,7 @@ const run = async () => {
       shortDescription: 'Python, Django, FastAPI & data pipelines',
       hourlyRate: 750, currency: 'INR', minHours: 4, maxHours: 40,
       skills: ['Python', 'Django', 'FastAPI', 'PostgreSQL', 'Celery'],
+      technologies: tech(['Python', 'Django', 'FastAPI', 'Flask', 'PostgreSQL', 'Celery', 'Redis', 'Data Pipelines']),
       image: '/images/services/python.png', active: true, featured: false,
       experienceYears: 5, rating: 4.6, totalBookings: 56 },
 
@@ -145,6 +154,7 @@ const run = async () => {
       shortDescription: 'Manual & automated QA, Cypress, Selenium',
       hourlyRate: 550, currency: 'INR', minHours: 4, maxHours: 40,
       skills: ['Selenium', 'Cypress', 'Appium', 'Postman', 'Jest'],
+      technologies: tech(['Selenium', 'Cypress', 'Appium', 'Jest', 'Postman', 'Manual Testing', 'Performance Testing', 'API Testing']),
       image: '/images/services/qa.png', active: true, featured: false,
       experienceYears: 4, rating: 4.5, totalBookings: 43 },
 
@@ -153,6 +163,7 @@ const run = async () => {
       shortDescription: 'LLMs, RAG, ML models & AI integrations',
       hourlyRate: 1200, currency: 'INR', minHours: 4, maxHours: 40,
       skills: ['Python', 'PyTorch', 'LangChain', 'OpenAI API', 'RAG'],
+      technologies: tech(['Gen AI Solutions', 'Prompt Engineering', 'Predictive Analytics', 'Computer Vision', 'NLP', 'AI Chatbots', 'ML Engineer', 'Vector Database Developer', 'Vision Engineer', 'RAG Systems']),
       image: '/images/services/ai.png', active: true, featured: true,
       experienceYears: 4, rating: 4.9, totalBookings: 38 },
 
@@ -161,6 +172,7 @@ const run = async () => {
       shortDescription: 'Custom WordPress themes, plugins & WooCommerce',
       hourlyRate: 450, currency: 'INR', minHours: 2, maxHours: 40,
       skills: ['WordPress', 'PHP', 'WooCommerce', 'Elementor', 'MySQL'],
+      technologies: tech(['WordPress', 'WooCommerce', 'Elementor', 'PHP', 'Custom Themes', 'Custom Plugins', 'Speed Optimization', 'MySQL']),
       image: '/images/services/wordpress.png', active: true, featured: false,
       experienceYears: 3, rating: 4.4, totalBookings: 91 },
 
@@ -169,13 +181,24 @@ const run = async () => {
       shortDescription: 'ETL, BigQuery, Kafka & data pipelines',
       hourlyRate: 900, currency: 'INR', minHours: 4, maxHours: 40,
       skills: ['Python', 'Apache Kafka', 'BigQuery', 'dbt', 'Airflow'],
+      technologies: tech(['ETL Pipelines', 'Apache Kafka', 'BigQuery', 'Redshift', 'dbt', 'Apache Airflow', 'Spark', 'Data Warehousing']),
       image: '/images/services/data.png', active: true, featured: false,
       experienceYears: 5, rating: 4.6, totalBookings: 29 },
   ];
 
+  // Use $set for technologies so existing docs get updated too
   const serviceIds = {};
   for (const s of SERVICES) {
-    const doc = await upsert(db.collection('services'), { slug: s.slug }, s);
+    const { technologies, ...rest } = s;
+    const r = await db.collection('services').findOneAndUpdate(
+      { slug: s.slug },
+      {
+        $setOnInsert: { ...rest, technologies, createdAt: now },
+        $set: { technologies, updatedAt: now },
+      },
+      { upsert: true, returnDocument: 'after' },
+    );
+    const doc = r.value || r;
     serviceIds[s.slug] = doc._id;
   }
   logger.info('✅ services done');
