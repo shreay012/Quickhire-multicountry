@@ -13,12 +13,19 @@ function genOtp(len = env.OTP_LENGTH) {
   return s;
 }
 
-async function sendSms(mobile, body) {
-  if (env.SMS_PROVIDER === 'mock') {
-    logger.info({ mobile, body }, '[MOCK SMS]');
+if (env.SMS_PROVIDER === 'msg91') {
+    const authKey = env.MSG91_AUTH_KEY;
+    if (!authKey) throw new AppError('CONFIG_ERROR', 'MSG91_AUTH_KEY not set', 500);
+    const mobile91 = mobile.length === 10 ? '91' + mobile : mobile.replace('+', '');
+    const otpMatch = body.match(/\b(\d{4,6})\b/);
+    const otp = otpMatch ? otpMatch[1] : '';
+    const url = `https://control.msg91.com/api/v5/otp?otp=${otp}&sender=QHIRE&message=${encodeURIComponent(body)}&mobile=${mobile91}`;
+    const resp = await fetch(url, { method: 'POST', headers: { authkey: authKey, 'content-type': 'application/json' } });
+    const data = await resp.json().catch(() => ({}));
+    if (!resp.ok || data.type === 'error') throw new AppError('SMS_FAILED', 'Failed to send OTP', 500);
+    logger.info({ mobile }, 'MSG91 OTP sent');
     return;
   }
-  // TODO: integrate MSG91 / SNS
 }
 
 function signAccessToken({ userId, role, sessionId }) {
