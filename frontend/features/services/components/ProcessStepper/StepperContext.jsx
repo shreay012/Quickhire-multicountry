@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useState, useRef, useEffect } from "react";
+import React, { createContext, useContext, useState, useRef, useEffect, useCallback } from "react";
 import { useSelector } from "react-redux";
 
 const StepperContext = createContext();
@@ -70,36 +70,51 @@ export const StepperProvider = ({ children }) => {
   const [isDetailsCompleted, setIsDetailsCompleted] = useState(false);
   const [restoredFromPending, setRestoredFromPending] = useState(false);
   const navigationCallbackRef = useRef(null);
+  // Ref for SYNCHRONOUS detection of restoration — readable by child effects in the same flush
+  const pendingRestoredRef = useRef(false);
   const isAuthenticated = useSelector((state) => state.auth.isAuthenticated);
   const totalSteps = isAuthenticated ? 4 : 5;
 
-  // On mount: if user is already authenticated AND a pending snapshot exists, restore it
+  // ─── Restore helper (also callable imperatively from DetailsStep) ───────────
+  const _doRestore = useCallback((snap) => {
+    restoreSnapshot(snap);
+    if (snap.selectedService) setSelectedService(snap.selectedService);
+    if (snap.selectedTechnologies?.length) setSelectedTechnologies(snap.selectedTechnologies);
+    if (snap.hoursBookingData) setHoursBookingData(snap.hoursBookingData);
+    setIsDetailsCompleted(true);
+    setActiveStep(2); // → Summary in 4-step auth flow
+    pendingRestoredRef.current = true; // synchronous — readable immediately by child effects
+    setRestoredFromPending(true);
+    localStorage.removeItem(LS_PENDING);
+    console.log("✅ Booking state restored from pending snapshot → step 2 (Summary)");
+  }, []);
+
+  // ─── Reactive restore: fires when isAuthenticated changes ──────────────────
+  // Also handles already-logged-in users who start a fresh booking (no pending).
   useEffect(() => {
     if (typeof window === "undefined") return;
+    if (!isAuthenticated) return;
+
     const raw = localStorage.getItem(LS_PENDING);
-    if (!raw) return;
+
+    if (!raw) {
+      // User was already authenticated when they opened the booking page.
+      // No pending snapshot → just mark details as complete so the 4-step flow renders.
+      setIsDetailsCompleted(true);
+      return;
+    }
+
     try {
       const snap = JSON.parse(raw);
-      // Ignore stale snapshots (older than 2 hours)
       if (Date.now() - (snap.savedAt || 0) > 2 * 60 * 60 * 1000) {
         localStorage.removeItem(LS_PENDING);
+        setIsDetailsCompleted(true);
         return;
       }
-      // Restore only if user is now authenticated
-      if (isAuthenticated) {
-        restoreSnapshot(snap);
-        if (snap.selectedService) setSelectedService(snap.selectedService);
-        if (snap.selectedTechnologies?.length) setSelectedTechnologies(snap.selectedTechnologies);
-        if (snap.hoursBookingData) setHoursBookingData(snap.hoursBookingData);
-        setIsDetailsCompleted(true);
-        // Jump to Summary step (step 2 in 4-step authenticated flow)
-        setActiveStep(2);
-        setRestoredFromPending(true);
-        localStorage.removeItem(LS_PENDING);
-        console.log("✅ Booking state restored from pending snapshot → step 2 (Summary)");
-      }
+      _doRestore(snap);
     } catch (e) {
       localStorage.removeItem(LS_PENDING);
+      setIsDetailsCompleted(true);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAuthenticated]);
@@ -115,6 +130,20 @@ export const StepperProvider = ({ children }) => {
     localStorage.setItem(LS_PENDING, JSON.stringify(snap));
     console.log("💾 Pending booking snapshot saved");
   };
+
+  /**
+   * Auto-save pending booking whenever HoursStep completes.
+   * Critical: this guarantees _pending_booking exists BEFORE verifyOtp fires
+   * and changes isAuthenticated — fixing the restore timing race condition.
+   */
+  const updateHoursBookingData = useCallback((data) => {
+    setHoursBookingData(data);
+    if (data && !isAuthenticated && typeof window !== "undefined") {
+      const snap = buildSnapshot({ selectedService, selectedTechnologies, hoursBookingData: data });
+      localStorage.setItem(LS_PENDING, JSON.stringify(snap));
+      console.log("💾 Auto-saved pending booking after HoursStep completed");
+    }
+  }, [isAuthenticated, selectedService, selectedTechnologies]);
 
   const nextStep = () => {
     // If there's a navigation callback, call it first
@@ -163,7 +192,7 @@ export const StepperProvider = ({ children }) => {
         setSelectedService,
         isAuthenticated,
         hoursBookingData,
-        setHoursBookingData,
+        setHoursBookingData: updateHoursBookingData,
         detailsBookingData,
         setDetailsBookingData,
         termsAccepted,
@@ -174,6 +203,7 @@ export const StepperProvider = ({ children }) => {
         setIsDetailsCompleted,
         savePendingBooking,
         restoredFromPending,
+        pendingRestoredRef,
       }}
     >
       {children}
