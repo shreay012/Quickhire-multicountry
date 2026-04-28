@@ -22,7 +22,11 @@ export const cancelSchema = z.object({
 
 export const extendSchema = z.object({
   additionalHours: z.number().int().min(1).max(720),
-  newEndTime: z.string().datetime(),
+  newEndTime: z.string().datetime().optional(), // optional — backend can calculate if not provided
+  hourlyRate: z.number().optional(),
+  subtotal: z.number().optional(),
+  gst: z.number().optional(),
+  total: z.number().optional(),
 });
 
 export const transitionSchema = z.object({

@@ -143,14 +143,28 @@ export async function cancel(id, reason, user) {
   return transition(id, 'cancelled', user, reason);
 }
 
-export async function extend(id, { additionalHours, newEndTime }, user) {
+export async function extend(id, body, user) {
+  const { additionalHours, newEndTime, hourlyRate, subtotal, gst, total } = body;
   const b = await repo.findById(id);
   if (!b) throw new AppError('RESOURCE_NOT_FOUND', 'Booking not found', 404);
   ensureOwnerOrStaff(b, user);
-  return repo.updateOne(id, {
+
+  // Calculate new end time: use provided value or derive from current endTime
+  const baseEnd = b.endTime ? new Date(b.endTime) : new Date();
+  const computedEnd = newEndTime ? new Date(newEndTime) : new Date(baseEnd.getTime() + additionalHours * 3600_000);
+
+  const updatePayload = {
     duration: (b.duration || 0) + additionalHours,
-    endTime: new Date(newEndTime),
-  });
+    endTime: computedEnd,
+  };
+
+  // Store extension pricing if provided
+  if (total != null) {
+    updatePayload['pricing.extensionTotal'] = (b.pricing?.extensionTotal || 0) + total;
+    updatePayload['pricing.totalPaid'] = (b.pricing?.totalPaid || b.pricing?.total || 0) + total;
+  }
+
+  return repo.updateOne(id, updatePayload);
 }
 
 export async function getById(id, user) {

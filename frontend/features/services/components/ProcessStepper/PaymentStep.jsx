@@ -34,6 +34,7 @@ const PaymentStep = () => {
     termsAccepted,
     setTermsAccepted,
     previousStep,
+    nextStep,
     isFirstStep,
   } = useStepperContext();
   const dispatch = useDispatch();
@@ -445,8 +446,14 @@ const PaymentStep = () => {
         setSuccessMessage(null);
       }, 2000);
 
-      // Close login modal
+      // Close login modal and move to summary step
       setShowLoginModal(false);
+      
+      // Move to SummaryStep after OTP verification
+      setTimeout(() => {
+        console.log("✅ OTP verified - moving to SummaryStep");
+        nextStep();
+      }, 300);
     } catch (error) {
       setErrorMessage(
         typeof error === "string"
