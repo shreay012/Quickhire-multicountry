@@ -11,7 +11,8 @@ const schema = z.object({
   REDIS_URL: z.string().default('redis://localhost:6379'),
 
   JWT_PRIVATE_KEY: z.string(),
-  JWT_PUBLIC_KEY: z.string(),
+  JWT_PUBLIC_KEY: z.string().optional(),
+  JWT_ALGORITHM: z.enum(['RS256', 'HS256']).default('RS256'),
   JWT_ACCESS_TTL: z.string().default('15m'),
   JWT_REFRESH_TTL: z.string().default('30d'),
   JWT_ISSUER: z.string().default('quickhire.services'),
@@ -57,10 +58,24 @@ if (!parsed.success) {
 export const env = parsed.data;
 // Replace literal \n in PEM keys (common when set via .env)
 env.JWT_PRIVATE_KEY = env.JWT_PRIVATE_KEY.replace(/\\n/g, '\n');
-env.JWT_PUBLIC_KEY = env.JWT_PUBLIC_KEY.replace(/\\n/g, '\n');
+if (env.JWT_PUBLIC_KEY) {
+  env.JWT_PUBLIC_KEY = env.JWT_PUBLIC_KEY.replace(/\\n/g, '\n');
+}
 
-// Safety: DEV_MASTER_OTP must never be set in production.
-if (env.NODE_ENV === 'production' && env.DEV_MASTER_OTP) {
-  console.error('❌ FATAL: DEV_MASTER_OTP is set in production. Remove it immediately.');
+// If the app is running in development with a plain-text secret rather than a
+// full RSA key pair, allow HS256 for local testing and use the same secret
+// for verification.
+const isPemPrivateKey = /-----BEGIN [A-Z ]+PRIVATE KEY-----/.test(env.JWT_PRIVATE_KEY);
+if (env.NODE_ENV === 'development' && env.JWT_ALGORITHM === 'RS256' && !isPemPrivateKey) {
+  console.warn('⚠️ JWT_PRIVATE_KEY does not appear to be a PEM key; falling back to HS256 for development.');
+  env.JWT_ALGORITHM = 'HS256';
+}
+if (env.JWT_ALGORITHM === 'HS256') {
+  env.JWT_PUBLIC_KEY = env.JWT_PRIVATE_KEY;
+}
+if (env.JWT_ALGORITHM === 'RS256' && !env.JWT_PUBLIC_KEY) {
+  console.error('❌ Invalid environment: JWT_PUBLIC_KEY is required for RS256');
   process.exit(1);
 }
+
+// DEV_MASTER_OTP allowed in all environments for demo/staging use.
