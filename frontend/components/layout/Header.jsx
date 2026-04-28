@@ -7,6 +7,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useTranslations } from "next-intl";
 import axiosInstance, { userAuth } from "@/lib/axios/axiosInstance";
 import LocaleCurrencySwitcher from "@/components/common/LocaleCurrencySwitcher";
+import chatSocketService from "@/lib/services/chatSocketService";
 
 const Header = () => {
   const pathname = usePathname();
@@ -66,6 +67,34 @@ const Header = () => {
 
   // Refresh stats whenever route changes (best-effort)
   useEffect(() => { refreshAuthAndStats(); }, [pathname, refreshAuthAndStats]);
+
+  // Real-time notification badge update via socket
+  useEffect(() => {
+    const handleNewNotification = () => {
+      // Increment badge immediately — no round-trip needed
+      setStats(prev => ({
+        ...prev,
+        unreadNotificationsCount: (prev.unreadNotificationsCount || 0) + 1,
+      }));
+    };
+
+    const sock = chatSocketService.socket;
+    if (sock) {
+      sock.on('notification:new', handleNewNotification);
+      sock.on('notification', handleNewNotification);
+    }
+
+    // Also listen to global window event fired by chatSocketService
+    window.addEventListener('newNotification', handleNewNotification);
+
+    return () => {
+      if (sock) {
+        sock.off('notification:new', handleNewNotification);
+        sock.off('notification', handleNewNotification);
+      }
+      window.removeEventListener('newNotification', handleNewNotification);
+    };
+  }, []);
 
   // Responsive breakpoint detection
   useEffect(() => {

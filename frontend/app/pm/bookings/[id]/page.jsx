@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import staffApi from '@/lib/axios/staffApi';
+import chatSocketService from '@/lib/services/chatSocketService';
 import { PageHeader, StatusBadge, Spinner, ErrorBox, Button } from '@/components/staff/ui';
 
 function fmtDuration(ms) {
@@ -77,11 +78,41 @@ export default function PmBookingDetailPage() {
     }
   }, [job?.status]);
 
-  // Chat polling (lightweight; sockets exist but keep simple here)
+  // Real-time chat via socket (with 10s polling as fallback)
   useEffect(() => {
-    pollRef.current = setInterval(loadMessages, 5000);
-    return () => clearInterval(pollRef.current);
-  }, [loadMessages]);
+    // Socket: listen for new messages in this room
+    const sock = chatSocketService.socket;
+    const roomId = job?.customerId ? `${id}_service_${job?.services?.[0]?.serviceId || id}` : null;
+
+    const onMessage = (msg) => {
+      if (!msg) return;
+      setMessages(prev => {
+        // Deduplicate by _id
+        const exists = prev.some(m => String(m._id) === String(msg._id || msg.id));
+        return exists ? prev : [...prev, msg];
+      });
+    };
+
+    if (sock) {
+      // Join the booking chat room
+      if (roomId) sock.emit('join-room', roomId);
+      sock.on('new-message', onMessage);
+      sock.on('new_message', onMessage);
+      sock.on('message', onMessage);
+    }
+
+    // Fallback polling at 10s (reduced from 5s since socket handles real-time)
+    pollRef.current = setInterval(loadMessages, 10000);
+
+    return () => {
+      if (sock) {
+        sock.off('new-message', onMessage);
+        sock.off('new_message', onMessage);
+        sock.off('message', onMessage);
+      }
+      clearInterval(pollRef.current);
+    };
+  }, [id, loadMessages, job?.customerId, job?.services]);
 
   useEffect(() => {
     chatBottomRef.current?.scrollIntoView({ behavior: 'smooth' });

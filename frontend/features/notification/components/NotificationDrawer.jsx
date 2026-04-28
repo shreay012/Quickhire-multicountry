@@ -13,6 +13,7 @@ import { IconButton } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
 
 import { fetchDashboardStats } from "@/lib/redux/slices/dashboardSlice";
+import chatSocketService from "@/lib/services/chatSocketService";
 
 const NotificationDrawer = ({ isOpen, onClose }) => {
   const dispatch = useDispatch();
@@ -79,6 +80,28 @@ const NotificationDrawer = ({ isOpen, onClose }) => {
       dispatch(fetchAllNotifications({ page: nextPage, limit: 10 }));
     }
   }, [dispatch, currentPage, isLoadingMore, pagination.hasNextPage]);
+
+  // Real-time: fetch latest when new notification arrives via socket
+  useEffect(() => {
+    const onNew = () => {
+      // Refresh first page to show new notification at top
+      dispatch(fetchAllNotifications({ page: 1, limit: 10 }));
+      dispatch(fetchDashboardStats());
+    };
+    const sock = chatSocketService.socket;
+    if (sock) {
+      sock.on('notification:new', onNew);
+      sock.on('notification', onNew);
+    }
+    window.addEventListener('newNotification', onNew);
+    return () => {
+      if (sock) {
+        sock.off('notification:new', onNew);
+        sock.off('notification', onNew);
+      }
+      window.removeEventListener('newNotification', onNew);
+    };
+  }, [dispatch]);
 
   // Prevent body scroll when drawer is open
   useEffect(() => {

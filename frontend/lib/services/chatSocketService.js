@@ -294,14 +294,12 @@ class ChatSocketService {
     // Listen for notification:new event (backend notification format)
     this.socket.on('notification:new', (data) => {
       console.log('🔔 NOTIFICATION RECEIVED on "notification:new" event!');
-      console.log('📨 Full notification data:', JSON.stringify(data, null, 2));
-      console.log('   └─ Type:', data.type);
-      console.log('   └─ Route:', data.route);
-      console.log('   └─ Message:', data.message);
-      console.log('   └─ From User:', data.fromUserId);
-      console.log('   └─ To User:', data.toUserId);
-      console.log('   └─ Service ID:', data.serviceId);
-      console.log('   └─ Message ID:', data.messageId);
+
+      // 🔑 Fire global window event so Header badge + NotificationDrawer update
+      // regardless of which component is mounted
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('newNotification', { detail: data }));
+      }
 
       // FIRST: Call notification callback with original data (for toasts, etc.)
       if (this.callbacks.onNotificationReceived) {
