@@ -1,14 +1,28 @@
 "use client";
 
-import { Box } from "@mui/material";
+import { useEffect } from "react";
+import { useDispatch, useSelector } from "react-redux";
+import { guestAccess } from "@/lib/redux/slices/authSlice/authSlice";
 import { StepperProvider } from "./ProcessStepper/StepperContext";
 import ProcessStepper from "./ProcessStepper";
 import StepContent from "./ProcessStepper/StepContent";
 
 const RightComponent = ({ serviceId, selectedService }) => {
-  console.log("RightComponent received serviceId:", serviceId);
+  const dispatch = useDispatch();
+  const { isAuthenticated, guestToken } = useSelector((state) => state.auth);
 
-  console.log("RightComponent received selectedService:", selectedService);
+  // Ensure guest users have a temporary token so API calls
+  // (pricing, availability) don't 401 before they reach step 4 login.
+  useEffect(() => {
+    if (!isAuthenticated && !guestToken && typeof window !== "undefined") {
+      const existingToken = localStorage.getItem("token");
+      const existingGuest = localStorage.getItem("guestToken");
+      if (!existingToken && !existingGuest) {
+        dispatch(guestAccess());
+      }
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <StepperProvider>

@@ -1,10 +1,10 @@
 import axios from 'axios';
 
-// QuickHire backend base URL. Uses NEXT_PUBLIC_API_URL when set (e.g.
-// http://localhost:4000/api in dev) and falls back to the local backend.
+// QuickHire backend base URL. Uses NEXT_PUBLIC_API_URL when set and falls back to the local backend.
+// Local backend routes are mounted at root, not under /api.
 const API_BASE =
   (typeof process !== 'undefined' && process.env.NEXT_PUBLIC_API_URL) ||
-  'http://localhost:4000/api';
+  'http://localhost:4000';
 
 const axiosInstance = axios.create({
   baseURL: API_BASE,
@@ -78,13 +78,14 @@ axiosInstance.interceptors.response.use(
       const isPublic =
         path === '/' || PUBLIC_PREFIXES.some((p) => path === p || path.startsWith(p + '/'));
 
-      // Any 401 means the stored token is invalid/expired/revoked. Clear it and
-      // (for non-public pages) bounce the user to /login so they can re-auth
-      // instead of being stuck behind a generic "something failed" alert.
-      clearAuthStorage();
+      // On protected pages: clear auth and redirect to login
+      // On public/booking pages: do NOT clear auth or redirect —
+      // the booking flow handles login at step 4 (DetailsStep)
       if (!isPublic) {
+        clearAuthStorage();
         window.location.replace(`/login?next=${encodeURIComponent(path)}`);
       }
+      // Public page 401s are silently rejected — caller handles the error
     }
     return Promise.reject(error);
   },

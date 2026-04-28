@@ -15,7 +15,7 @@ import { useStepperContext } from "./StepperContext";
 import { useSelector, useDispatch } from "react-redux";
 import { usePrice } from "@/lib/hooks/usePrice";
 import { useSearchParams } from "next/navigation";
-import { fetchJobById } from "@/lib/redux/slices/bookingSlice/bookingSlice";
+import { fetchJobById, createJob, setSelectedJobId } from "@/lib/redux/slices/bookingSlice/bookingSlice";
 import { paymentService } from "@/lib/services/paymentApi";
 import { bookingService } from "@/lib/services/bookingApi";
 import Image from "next/image";
@@ -274,8 +274,57 @@ const SummaryStep = () => {
     console.log("👤 Logged in user - initiating payment");
 
     if (!jobId) {
-      alert("No job ID found. Please try again.");
-      return;
+      // Guest just logged in — create job from stored pricing data, then pay
+      const storedPricingData = localStorage.getItem("_pricing_data");
+      if (!storedPricingData) {
+        alert("Booking data not found. Please start again.");
+        return;
+      }
+      try {
+        setIsProcessingPayment(true);
+        const pricingData = JSON.parse(storedPricingData);
+        const serviceData = pricingData.data?.servicesWithPricing?.[0];
+        if (!serviceData) throw new Error("Service data missing");
+        const jobPayload = {
+          services: [{
+            serviceId: serviceData.serviceId?._id || serviceData.serviceId,
+            technologyIds: (serviceData.technologyIds || []).map(t => typeof t === "string" ? t : t._id || t.id || t).filter(Boolean),
+            selectedDays: serviceData.selectedDays || 1,
+            requirements: serviceData.requirements || "Booked from web",
+            preferredStartDate: serviceData.preferredStartDate,
+            preferredEndDate: serviceData.preferredEndDate,
+            durationTime: serviceData.durationTime,
+            startTime: serviceData.timeSlot?.startTime || "09:00",
+            endTime: serviceData.timeSlot?.endTime || "18:00",
+            timeSlot: { startTime: serviceData.timeSlot?.startTime || "09:00", endTime: serviceData.timeSlot?.endTime || "18:00" },
+            bookingType: serviceData.bookingType || "later",
+          }],
+        };
+        const createdJob = await dispatch(createJob(jobPayload)).unwrap();
+        const newJobId = createdJob.data?._id || createdJob._id;
+        if (!newJobId) throw new Error("Job creation failed");
+        dispatch(setSelectedJobId(newJobId));
+        router.push(`?jobId=${newJobId}`, { scroll: false });
+        // Re-fetch job details and proceed to payment on next render
+        await dispatch(fetchJobById(newJobId)).unwrap();
+        // Retry payment with new jobId
+        const orderResponse = await paymentService.createOrder(newJobId, total);
+        const paymentData = orderResponse.data.data;
+        if (paymentData?.mock) {
+          localStorage.removeItem("_current_job_id");
+          localStorage.removeItem("_pricing_data");
+          router.push(`/payment-success?jobId=${newJobId}`);
+          return;
+        }
+        // fall through to Razorpay with newJobId below is handled after this block
+        setIsProcessingPayment(false);
+        return;
+      } catch (e) {
+        console.error("❌ Job creation failed:", e);
+        setIsProcessingPayment(false);
+        alert("Failed to create booking. Please try again.");
+        return;
+      }
     }
 
     try {
