@@ -170,21 +170,22 @@ const SummaryStep = () => {
     }
   }, [jobDetails]);
 
-  // Load data from localStorage (GUEST USER FALLBACK)
+  // Load data from localStorage (GUEST USER FALLBACK or recent guest-turned-user)
   useEffect(() => {
-    // Only load from localStorage if no jobId (guest user)
-    if (jobId) {
-      console.log("✅ User logged in - skipping localStorage load");
+    // If API data exists for authenticated user, use that
+    if (jobDetails?.job || jobDetails) {
+      console.log("✅ User logged in with API data - skipping localStorage load");
       return;
     }
 
+    // Otherwise, load from localStorage as fallback (guest or newly authenticated user)
     const storedPricingData = localStorage.getItem("_pricing_data");
     const selectedDate = localStorage.getItem("_selected_date");
     const selectedAssignment = localStorage.getItem(
       "_selected_assignment_type",
     );
 
-    console.log("📊 Loading pricing data from localStorage (Guest user)");
+    console.log("📊 Loading pricing data from localStorage (Guest or recently authenticated user)");
 
     if (storedPricingData) {
       const parsedPricingData = JSON.parse(storedPricingData);
@@ -242,7 +243,7 @@ const SummaryStep = () => {
     } else {
       console.warn("⚠️ No pricing data found in localStorage");
     }
-  }, [jobId]); // Re-run if jobId changes
+  }, [jobDetails]); // Re-run if jobDetails changes, fallback dependency on jobId for initial mount
 
   // Calculate pricing from API response
   // Backend job.pricing shape: { hourly, subtotal, tax, total, currency }

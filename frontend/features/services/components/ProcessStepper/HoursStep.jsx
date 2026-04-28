@@ -1957,9 +1957,9 @@ const HoursStep = ({ selectedService: selectedServiceProp, serviceId } = {}) => 
             }
             try {
               setIsPricingLoading(true);
-              const token = localStorage.getItem("token");
-
-              if (token) {
+              // Use Redux isAuthenticated (not just localStorage token)
+              // so expired/stale tokens don't trigger authenticated API flows
+              if (isAuthenticated) {
                 // User is logged in - Fetch customer bookings to get jobId
                 console.log(
                   "🔐 User logged in - Fetching customer bookings...",

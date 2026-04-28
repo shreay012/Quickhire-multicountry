@@ -745,20 +745,16 @@ const DetailsStep = () => {
           const bookingsResponse = await dispatch(
             fetchCustomerBookings("pending"),
           ).unwrap();
-          router.push(`?jobId=${bookingsResponse?.data?.[0]?._id}`, {
-            scroll: false,
-          });
-          console.log(
-            "📚 Bookings API Response (Existing User):",
-            bookingsResponse?.data?.[0]?._id,
-          );
           setBookingsResponse(bookingsResponse);
 
-          // Store job ID if bookings exist
-          if (bookingsResponse.data && bookingsResponse.data.length > 0) {
+          // Only push jobId to URL if a real job exists (prevents ?jobId=undefined)
+          if (bookingsResponse?.data && bookingsResponse.data.length > 0) {
             const jobId = bookingsResponse.data[0]._id;
             dispatch(setSelectedJobId(jobId));
+            router.push(`?jobId=${jobId}`, { scroll: false });
             console.log("💾 Stored job ID:", jobId);
+          } else {
+            console.log("📭 No existing jobs — guest will create job at payment");
           }
 
           console.log("✅ Customer bookings fetched successfully");
