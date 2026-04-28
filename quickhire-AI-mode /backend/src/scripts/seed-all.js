@@ -13,6 +13,32 @@ import 'dotenv/config';
 import { connectDb, getDb, closeDb } from '../config/db.js';
 import { logger } from '../config/logger.js';
 import { ObjectId } from 'mongodb';
+import Redis from 'ioredis';
+
+// ─── Redis cache flush for services ─────────────────────────────────────────
+async function flushServicesCache() {
+  const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
+  const client = new Redis(redisUrl, { maxRetriesPerRequest: 1, lazyConnect: true });
+  try {
+    await client.connect();
+    // Scan and delete all services:* keys
+    let cursor = '0';
+    let deleted = 0;
+    do {
+      const [nextCursor, keys] = await client.scan(cursor, 'MATCH', 'services:*', 'COUNT', 100);
+      cursor = nextCursor;
+      if (keys.length > 0) {
+        await client.del(...keys);
+        deleted += keys.length;
+      }
+    } while (cursor !== '0');
+    logger.info({ deleted }, '✅ Redis services cache cleared');
+  } catch (e) {
+    logger.warn({ err: e.message }, 'Redis cache flush skipped (Redis unavailable)');
+  } finally {
+    await client.quit().catch(() => {});
+  }
+}
 
 // ─── helpers ────────────────────────────────────────────────────────────────
 const id = () => new ObjectId();
@@ -211,6 +237,7 @@ const run = async () => {
     serviceIds[slug] = doc._id;
   }
   logger.info('✅ services done');
+  await flushServicesCache(); // Clear stale Redis cache so live site shows fresh data
 
   // ── 3. BOOKINGS & JOBS ─────────────────────────────────────────────────────
   logger.info('seeding bookings & jobs…');
