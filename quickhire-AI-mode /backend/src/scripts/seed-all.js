@@ -27,6 +27,22 @@ const upsert = async (col, filter, doc) => {
   return r.value || r;
 };
 
+// ─── Common service fields ──────────────────────────────────────────────────
+const COMMON_NOT_INCLUDED = [
+  'Software licenses or paid third-party tools',
+  'Support beyond agreed timelines',
+  'Work beyond the defined project scope',
+  'Weekends & national holiday support',
+];
+
+const makeFaqs = (serviceName) => [
+  { question: `How quickly can I get a ${serviceName}?`, answer: 'Once you book and complete payment, our AI-TPM matches you with a verified expert within 10 minutes.' },
+  { question: 'Can I extend the session?', answer: 'Yes, you can extend at any time from the app. The same expert continues your project for seamless delivery.' },
+  { question: 'What if I am not satisfied?', answer: 'We offer a satisfaction guarantee. If the work does not meet your expectations, raise a ticket and we will resolve it.' },
+  { question: 'Is the expert dedicated to my project?', answer: 'Yes. Once assigned, the expert works exclusively on your task during the booked hours.' },
+  { question: 'How do I communicate with the expert?', answer: 'Live in-app chat activates automatically after booking. You can also schedule calls via your Project Manager.' },
+];
+
 // ─── main ────────────────────────────────────────────────────────────────────
 const run = async () => {
   await connectDb();
@@ -94,112 +110,105 @@ const run = async () => {
   // Helper: build technologies array with stable ObjectIds
   const tech = (names) => names.map(name => ({ _id: new ObjectId(), name }));
 
+  const s = (slug, name, category, desc, shortDesc, rate, skills, techs, img, featured, expYrs, rating, bookings, minH = 4, maxH = 40) => ({
+    slug, name, category,
+    description: desc, shortDescription: shortDesc,
+    hourlyRate: rate, pricing: { hourly: rate },
+    currency: 'INR', minHours: minH, maxHours: maxH,
+    bookingType: 'instant',
+    skills, technologies: tech(techs),
+    notIncluded: COMMON_NOT_INCLUDED,
+    faqs: makeFaqs(name),
+    image: img, active: true, featured,
+    experienceYears: expYrs, rating, totalBookings: bookings,
+  });
+
   const SERVICES = [
-    { slug: 'react-developer', name: 'React Developer', category: 'Frontend Development',
-      description: 'Hire a senior React developer for your web app — component architecture, performance optimization, and modern hooks-based development.',
-      shortDescription: 'Senior React.js development for web apps',
-      hourlyRate: 800, currency: 'INR', minHours: 4, maxHours: 40,
-      skills: ['React', 'JavaScript', 'TypeScript', 'Redux', 'Next.js'],
-      technologies: tech(['React.js', 'Next.js', 'TypeScript', 'Redux', 'JavaScript', 'Tailwind CSS', 'GraphQL', 'REST API']),
-      image: '/images/services/react.png', active: true, featured: true,
-      experienceYears: 5, rating: 4.8, totalBookings: 120 },
+    s('react-developer', 'React Developer', 'Frontend Development',
+      'Hire a senior React developer for your web app — component architecture, performance optimization, and modern hooks-based development.',
+      'Senior React.js development for web apps', 800,
+      ['React', 'JavaScript', 'TypeScript', 'Redux', 'Next.js'],
+      ['React.js', 'Next.js', 'TypeScript', 'Redux', 'JavaScript', 'Tailwind CSS', 'GraphQL', 'REST API'],
+      '/images/services/react.png', true, 5, 4.8, 120),
 
-    { slug: 'node-backend-developer', name: 'Node.js Backend Developer', category: 'Backend Development',
-      description: 'Expert Node.js developer for REST APIs, microservices, real-time apps with Socket.IO, and MongoDB/PostgreSQL integrations.',
-      shortDescription: 'Node.js APIs, microservices & integrations',
-      hourlyRate: 800, currency: 'INR', minHours: 4, maxHours: 40,
-      skills: ['Node.js', 'Express', 'MongoDB', 'PostgreSQL', 'REST API'],
-      technologies: tech(['Node.js', 'Express.js', 'REST API', 'GraphQL', 'MongoDB', 'PostgreSQL', 'Socket.IO', 'Microservices']),
-      image: '/images/services/node.png', active: true, featured: true,
-      experienceYears: 5, rating: 4.7, totalBookings: 98 },
+    s('node-backend-developer', 'Node.js Backend Developer', 'Backend Development',
+      'Expert Node.js developer for REST APIs, microservices, real-time apps with Socket.IO, and MongoDB/PostgreSQL integrations.',
+      'Node.js APIs, microservices & integrations', 800,
+      ['Node.js', 'Express', 'MongoDB', 'PostgreSQL', 'REST API'],
+      ['Node.js', 'Express.js', 'REST API', 'GraphQL', 'MongoDB', 'PostgreSQL', 'Socket.IO', 'Microservices'],
+      '/images/services/node.png', true, 5, 4.7, 98),
 
-    { slug: 'flutter-developer', name: 'Flutter Mobile Developer', category: 'Mobile Development',
-      description: 'Build cross-platform iOS and Android apps with Flutter. Pixel-perfect UI, Firebase integration, push notifications.',
-      shortDescription: 'Cross-platform iOS & Android apps with Flutter',
-      hourlyRate: 700, currency: 'INR', minHours: 4, maxHours: 40,
-      skills: ['Flutter', 'Dart', 'Firebase', 'Android', 'iOS'],
-      technologies: tech(['Flutter', 'Dart', 'Firebase', 'Push Notifications', 'Android', 'iOS', 'REST API', 'GetX / Riverpod']),
-      image: '/images/services/flutter.png', active: true, featured: true,
-      experienceYears: 4, rating: 4.8, totalBookings: 85 },
+    s('flutter-developer', 'Flutter Mobile Developer', 'Mobile Development',
+      'Build cross-platform iOS and Android apps with Flutter. Pixel-perfect UI, Firebase integration, push notifications.',
+      'Cross-platform iOS & Android apps with Flutter', 700,
+      ['Flutter', 'Dart', 'Firebase', 'Android', 'iOS'],
+      ['Flutter', 'Dart', 'Firebase', 'Push Notifications', 'Android', 'iOS', 'REST API', 'GetX / Riverpod'],
+      '/images/services/flutter.png', true, 4, 4.8, 85),
 
-    { slug: 'devops-engineer', name: 'DevOps Engineer', category: 'DevOps & Cloud',
-      description: 'CI/CD pipelines, Docker, Kubernetes, AWS/GCP infrastructure, monitoring and scaling for your product.',
-      shortDescription: 'CI/CD, Docker, K8s, AWS infrastructure',
-      hourlyRate: 1000, currency: 'INR', minHours: 4, maxHours: 40,
-      skills: ['AWS', 'Docker', 'Kubernetes', 'Terraform', 'Jenkins'],
-      technologies: tech(['AWS', 'Docker', 'Kubernetes', 'Terraform', 'Jenkins', 'GitHub Actions', 'Linux', 'Monitoring & Alerts']),
-      image: '/images/services/devops.png', active: true, featured: true,
-      experienceYears: 6, rating: 4.9, totalBookings: 67 },
+    s('devops-engineer', 'DevOps Engineer', 'DevOps & Cloud',
+      'CI/CD pipelines, Docker, Kubernetes, AWS/GCP infrastructure, monitoring and scaling for your product.',
+      'CI/CD, Docker, K8s, AWS infrastructure', 1000,
+      ['AWS', 'Docker', 'Kubernetes', 'Terraform', 'Jenkins'],
+      ['AWS', 'Docker', 'Kubernetes', 'Terraform', 'Jenkins', 'GitHub Actions', 'Linux', 'Monitoring & Alerts'],
+      '/images/services/devops.png', true, 6, 4.9, 67),
 
-    { slug: 'ui-ux-designer', name: 'UI/UX Designer', category: 'Design',
-      description: 'User research, wireframes, Figma prototypes and production-ready design systems for web and mobile.',
-      shortDescription: 'Figma designs, wireframes & design systems',
-      hourlyRate: 600, currency: 'INR', minHours: 4, maxHours: 40,
-      skills: ['Figma', 'UI Design', 'UX Research', 'Prototyping', 'Design Systems'],
-      technologies: tech(['Figma', 'Wireframing', 'Prototyping', 'Design Systems', 'UX Research', 'User Testing', 'Mobile UI', 'Web UI']),
-      image: '/images/services/design.png', active: true, featured: false,
-      experienceYears: 4, rating: 4.7, totalBookings: 74 },
+    s('ui-ux-designer', 'UI/UX Designer', 'Design',
+      'User research, wireframes, Figma prototypes and production-ready design systems for web and mobile.',
+      'Figma designs, wireframes & design systems', 600,
+      ['Figma', 'UI Design', 'UX Research', 'Prototyping', 'Design Systems'],
+      ['Figma', 'Wireframing', 'Prototyping', 'Design Systems', 'UX Research', 'User Testing', 'Mobile UI', 'Web UI'],
+      '/images/services/design.png', false, 4, 4.7, 74),
 
-    { slug: 'python-developer', name: 'Python Developer', category: 'Backend Development',
-      description: 'Django/FastAPI backend, data pipelines, automation scripts and ML model integration.',
-      shortDescription: 'Python, Django, FastAPI & data pipelines',
-      hourlyRate: 750, currency: 'INR', minHours: 4, maxHours: 40,
-      skills: ['Python', 'Django', 'FastAPI', 'PostgreSQL', 'Celery'],
-      technologies: tech(['Python', 'Django', 'FastAPI', 'Flask', 'PostgreSQL', 'Celery', 'Redis', 'Data Pipelines']),
-      image: '/images/services/python.png', active: true, featured: false,
-      experienceYears: 5, rating: 4.6, totalBookings: 56 },
+    s('python-developer', 'Python Developer', 'Backend Development',
+      'Django/FastAPI backend, data pipelines, automation scripts and ML model integration.',
+      'Python, Django, FastAPI & data pipelines', 750,
+      ['Python', 'Django', 'FastAPI', 'PostgreSQL', 'Celery'],
+      ['Python', 'Django', 'FastAPI', 'Flask', 'PostgreSQL', 'Celery', 'Redis', 'Data Pipelines'],
+      '/images/services/python.png', false, 5, 4.6, 56),
 
-    { slug: 'qa-engineer', name: 'QA / Test Engineer', category: 'Quality Assurance',
-      description: 'Manual and automated testing (Selenium, Cypress, Appium). Test plans, regression suites, and bug triaging.',
-      shortDescription: 'Manual & automated QA, Cypress, Selenium',
-      hourlyRate: 550, currency: 'INR', minHours: 4, maxHours: 40,
-      skills: ['Selenium', 'Cypress', 'Appium', 'Postman', 'Jest'],
-      technologies: tech(['Selenium', 'Cypress', 'Appium', 'Jest', 'Postman', 'Manual Testing', 'Performance Testing', 'API Testing']),
-      image: '/images/services/qa.png', active: true, featured: false,
-      experienceYears: 4, rating: 4.5, totalBookings: 43 },
+    s('qa-engineer', 'QA / Test Engineer', 'Quality Assurance',
+      'Manual and automated testing (Selenium, Cypress, Appium). Test plans, regression suites, and bug triaging.',
+      'Manual & automated QA, Cypress, Selenium', 550,
+      ['Selenium', 'Cypress', 'Appium', 'Postman', 'Jest'],
+      ['Selenium', 'Cypress', 'Appium', 'Jest', 'Postman', 'Manual Testing', 'Performance Testing', 'API Testing'],
+      '/images/services/qa.png', false, 4, 4.5, 43),
 
-    { slug: 'ai-ml-engineer', name: 'AI / ML Engineer', category: 'AI & Machine Learning',
-      description: 'LLM integrations, RAG pipelines, model fine-tuning, data science with Python, PyTorch/TensorFlow.',
-      shortDescription: 'LLMs, RAG, ML models & AI integrations',
-      hourlyRate: 1200, currency: 'INR', minHours: 4, maxHours: 40,
-      skills: ['Python', 'PyTorch', 'LangChain', 'OpenAI API', 'RAG'],
-      technologies: tech(['Gen AI Solutions', 'Prompt Engineering', 'Predictive Analytics', 'Computer Vision', 'NLP', 'AI Chatbots', 'ML Engineer', 'Vector Database Developer', 'Vision Engineer', 'RAG Systems']),
-      image: '/images/services/ai.png', active: true, featured: true,
-      experienceYears: 4, rating: 4.9, totalBookings: 38 },
+    s('ai-ml-engineer', 'AI / ML Engineer', 'AI & Machine Learning',
+      'LLM integrations, RAG pipelines, model fine-tuning, data science with Python, PyTorch/TensorFlow.',
+      'LLMs, RAG, ML models & AI integrations', 1200,
+      ['Python', 'PyTorch', 'LangChain', 'OpenAI API', 'RAG'],
+      ['Gen AI Solutions', 'Prompt Engineering', 'Predictive Analytics', 'Computer Vision', 'NLP', 'AI Chatbots', 'ML Engineer', 'Vector Database Developer', 'Vision Engineer', 'RAG Systems'],
+      '/images/services/ai.png', true, 4, 4.9, 38),
 
-    { slug: 'wordpress-developer', name: 'WordPress Developer', category: 'CMS Development',
-      description: 'Custom theme and plugin development, WooCommerce setup, speed optimization and maintenance.',
-      shortDescription: 'Custom WordPress themes, plugins & WooCommerce',
-      hourlyRate: 450, currency: 'INR', minHours: 2, maxHours: 40,
-      skills: ['WordPress', 'PHP', 'WooCommerce', 'Elementor', 'MySQL'],
-      technologies: tech(['WordPress', 'WooCommerce', 'Elementor', 'PHP', 'Custom Themes', 'Custom Plugins', 'Speed Optimization', 'MySQL']),
-      image: '/images/services/wordpress.png', active: true, featured: false,
-      experienceYears: 3, rating: 4.4, totalBookings: 91 },
+    s('wordpress-developer', 'WordPress Developer', 'CMS Development',
+      'Custom theme and plugin development, WooCommerce setup, speed optimization and maintenance.',
+      'Custom WordPress themes, plugins & WooCommerce', 450,
+      ['WordPress', 'PHP', 'WooCommerce', 'Elementor', 'MySQL'],
+      ['WordPress', 'WooCommerce', 'Elementor', 'PHP', 'Custom Themes', 'Custom Plugins', 'Speed Optimization', 'MySQL'],
+      '/images/services/wordpress.png', false, 3, 4.4, 91, 2, 40),
 
-    { slug: 'data-engineer', name: 'Data Engineer', category: 'Data & Analytics',
-      description: 'ETL pipelines, data warehousing on BigQuery/Redshift, Kafka streams, dbt transformations.',
-      shortDescription: 'ETL, BigQuery, Kafka & data pipelines',
-      hourlyRate: 900, currency: 'INR', minHours: 4, maxHours: 40,
-      skills: ['Python', 'Apache Kafka', 'BigQuery', 'dbt', 'Airflow'],
-      technologies: tech(['ETL Pipelines', 'Apache Kafka', 'BigQuery', 'Redshift', 'dbt', 'Apache Airflow', 'Spark', 'Data Warehousing']),
-      image: '/images/services/data.png', active: true, featured: false,
-      experienceYears: 5, rating: 4.6, totalBookings: 29 },
+    s('data-engineer', 'Data Engineer', 'Data & Analytics',
+      'ETL pipelines, data warehousing on BigQuery/Redshift, Kafka streams, dbt transformations.',
+      'ETL, BigQuery, Kafka & data pipelines', 900,
+      ['Python', 'Apache Kafka', 'BigQuery', 'dbt', 'Airflow'],
+      ['ETL Pipelines', 'Apache Kafka', 'BigQuery', 'Redshift', 'dbt', 'Apache Airflow', 'Spark', 'Data Warehousing'],
+      '/images/services/data.png', false, 5, 4.6, 29),
   ];
 
-  // Use $set for technologies so existing docs get updated too
+  // $set ALL fields so re-running always syncs latest data to existing docs
   const serviceIds = {};
-  for (const s of SERVICES) {
-    const { technologies, ...rest } = s;
+  for (const svc of SERVICES) {
+    const { slug, ...fields } = svc;
     const r = await db.collection('services').findOneAndUpdate(
-      { slug: s.slug },
+      { slug },
       {
-        $setOnInsert: { ...rest, technologies, createdAt: now },
-        $set: { technologies, updatedAt: now },
+        $setOnInsert: { slug, createdAt: now },
+        $set: { slug, ...fields, updatedAt: now },
       },
       { upsert: true, returnDocument: 'after' },
     );
     const doc = r.value || r;
-    serviceIds[s.slug] = doc._id;
+    serviceIds[slug] = doc._id;
   }
   logger.info('✅ services done');
 
