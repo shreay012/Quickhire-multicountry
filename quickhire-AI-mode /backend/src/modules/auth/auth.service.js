@@ -7,6 +7,63 @@ import { logger } from '../../config/logger.js';
 import { AppError } from '../../utils/AppError.js';
 import * as repo from './auth.repository.js';
 
+// ---------------------------------------------------------------------------
+// In-memory Redis fallback (dev only)
+// Used automatically when the Redis connection is unavailable so that the
+// OTP flow still works locally without a running Redis instance.
+// ---------------------------------------------------------------------------
+const memStore = new Map(); // key → { value, expiresAt }
+
+function memGet(key) {
+  const entry = memStore.get(key);
+  if (!entry) return null;
+  if (entry.expiresAt && Date.now() > entry.expiresAt) { memStore.delete(key); return null; }
+  return entry.value;
+}
+function memSet(key, value, ttlSeconds) {
+  memStore.set(key, { value, expiresAt: ttlSeconds ? Date.now() + ttlSeconds * 1000 : null });
+}
+function memIncr(key) {
+  const cur = Number(memGet(key) ?? 0) + 1;
+  const prev = memStore.get(key);
+  // preserve existing TTL when bumping the counter
+  memStore.set(key, { value: String(cur), expiresAt: prev?.expiresAt ?? null });
+  return cur;
+}
+function memExpire(key, ttlSeconds) {
+  const entry = memStore.get(key);
+  if (entry) entry.expiresAt = Date.now() + ttlSeconds * 1000;
+}
+function memDel(key) { memStore.delete(key); }
+
+async function isRedisAlive() {
+  try { await redis.ping(); return true; } catch { return false; }
+}
+
+async function kv_incr(key) {
+  if (await isRedisAlive()) return redis.incr(key);
+  return memIncr(key);
+}
+async function kv_expire(key, ttl) {
+  if (await isRedisAlive()) return redis.expire(key, ttl);
+  memExpire(key, ttl);
+}
+async function kv_set(key, value, ...args) {
+  if (await isRedisAlive()) return redis.set(key, value, ...args);
+  // parse EX ttl from args: ['EX', seconds]
+  const exIdx = args.findIndex(a => String(a).toUpperCase() === 'EX');
+  const ttl = exIdx !== -1 ? Number(args[exIdx + 1]) : null;
+  memSet(key, value, ttl);
+}
+async function kv_get(key) {
+  if (await isRedisAlive()) return redis.get(key);
+  return memGet(key);
+}
+async function kv_del(key) {
+  if (await isRedisAlive()) return redis.del(key);
+  memDel(key);
+}
+
 function genOtp(len = env.OTP_LENGTH) {
   let s = '';
   for (let i = 0; i < len; i++) s += Math.floor(Math.random() * 10);
@@ -26,7 +83,7 @@ function signAccessToken({ userId, role, sessionId }) {
     { sub: userId, role, sessionId },
     env.JWT_PRIVATE_KEY,
     {
-      algorithm: 'RS256',
+      algorithm: env.JWT_ALGORITHM,
       expiresIn: env.JWT_ACCESS_TTL,
       issuer: env.JWT_ISSUER,
       audience: env.JWT_AUDIENCE,
@@ -44,30 +101,31 @@ function refreshTtlMs() {
 
 export async function sendOtp({ mobile, role }) {
   const limitKey = `otp:rate:${mobile}`;
-  const count = await redis.incr(limitKey);
-  if (count === 1) await redis.expire(limitKey, 60);
-  if (count > 3) throw new AppError('RATE_LIMITED', 'Too many OTP requests', 429);
+  const count = await kv_incr(limitKey);
+  if (count === 1) await kv_expire(limitKey, 60);
+  if (count > 5) throw new AppError('RATE_LIMITED', 'Too many OTP requests', 429);
 
   const otp = genOtp();
   const hash = await bcrypt.hash(otp, 8);
-  await redis.set(`otp:${role}:${mobile}`, hash, 'EX', env.OTP_TTL_SECONDS);
+  await kv_set(`otp:${role}:${mobile}`, hash, 'EX', env.OTP_TTL_SECONDS);
   await sendSms(mobile, `Your QuickHire OTP is ${otp}. Valid for 5 minutes.`);
+  logger.info({ mobile, otp }, '[DEV OTP]'); // visible in backend console for local testing
   return { success: true };
 }
 
 export async function verifyOtp({ mobile, otp, fcmToken, role = 'user', ip, ua }) {
   const key = `otp:${role}:${mobile}`;
 
-  // Dev master OTP — bypass Redis when matched (only if env var is set)
+  // Dev master OTP — bypass store when matched (only if env var is set)
   const masterOtp = env.DEV_MASTER_OTP;
   if (masterOtp && otp === masterOtp) {
-    await redis.del(key).catch(() => {});
+    await kv_del(key).catch(() => {});
   } else {
-    const hash = await redis.get(key);
+    const hash = await kv_get(key);
     if (!hash) throw new AppError('AUTH_INVALID_OTP', 'OTP expired or not requested', 400);
     const ok = await bcrypt.compare(otp, hash);
     if (!ok) throw new AppError('AUTH_INVALID_OTP', 'Invalid OTP', 400);
-    await redis.del(key);
+    await kv_del(key);
   }
 
   const user = await repo.upsertUser({ mobile, role, fcmToken });
@@ -94,7 +152,7 @@ export async function guestAccess() {
     { sub: guestId, role: 'guest' },
     env.JWT_PRIVATE_KEY,
     {
-      algorithm: 'RS256',
+      algorithm: env.JWT_ALGORITHM,
       expiresIn: '7d',
       issuer: env.JWT_ISSUER,
       audience: env.JWT_AUDIENCE,

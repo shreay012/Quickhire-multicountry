@@ -2,6 +2,18 @@ import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import { authService } from '../../../services/authApi';
 
 // Async Thunks
+// Helper: extract a human-readable message from any backend error shape.
+// Backend returns: { success: false, error: { code, message } }
+function extractErrorMessage(error, fallback) {
+  return (
+    error.response?.data?.error?.message ||   // ← backend's actual shape
+    error.response?.data?.message ||
+    (typeof error.response?.data === 'string' ? error.response.data : null) ||
+    error.message ||
+    fallback
+  );
+}
+
 export const sendOtp = createAsyncThunk(
   'auth/sendOtp',
   async (mobileNumber, { rejectWithValue }) => {
@@ -9,7 +21,9 @@ export const sendOtp = createAsyncThunk(
       const response = await authService.sendOtp(mobileNumber);
       return response.data?.data !== undefined ? response.data.data : response.data;
     } catch (error) {
-      return rejectWithValue(error.response?.data || 'Failed to send OTP');
+      return rejectWithValue(
+        extractErrorMessage(error, 'Failed to send OTP. Please check your connection and try again.')
+      );
     }
   }
 );
@@ -21,7 +35,9 @@ export const verifyOtp = createAsyncThunk(
       const response = await authService.verifyOtp(mobileNumber, otp, fcmToken);
       return response.data?.data !== undefined ? response.data.data : response.data;
     } catch (error) {
-      return rejectWithValue(error.response?.data || 'Invalid OTP');
+      return rejectWithValue(
+        extractErrorMessage(error, 'Login failed. Please try again.')
+      );
     }
   }
 );

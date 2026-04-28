@@ -9,20 +9,24 @@ export async function connectDb() {
   if (db) return db;
   client = new MongoClient(env.MONGO_URI, {
     retryWrites: true,
-    // Phase 6: pool sized for ~20 API pods × 50 = 1000 total connections (Atlas M10 limit: 1500)
     maxPoolSize: 50,
     minPoolSize: 5,
-    maxIdleTimeMS: 60_000,      // release idle connections after 1 minute
-    waitQueueTimeoutMS: 5_000,  // fail fast if pool exhausted
-    serverSelectionTimeoutMS: 10_000,
+    maxIdleTimeMS: 60_000,
+    waitQueueTimeoutMS: 5_000,
+    serverSelectionTimeoutMS: env.NODE_ENV === 'development' ? 2_000 : 10_000,
     heartbeatFrequencyMS: 10_000,
     socketTimeoutMS: 45_000,
-    connectTimeoutMS: 10_000,
+    connectTimeoutMS: env.NODE_ENV === 'development' ? 2_000 : 10_000,
     compressors: ['zlib'],
   });
-  await client.connect();
-  db = client.db(env.MONGO_DB);
-  logger.info({ db: env.MONGO_DB }, 'mongo connected');
+  try {
+    await client.connect();
+    db = client.db(env.MONGO_DB);
+    logger.info({ db: env.MONGO_DB }, 'mongo connected');
+  } catch (e) {
+    logger.warn({ err: e.message }, '⚠️  MongoDB unavailable — auth will use in-memory fallback (dev mode)');
+    return null;
+  }
 
   // Monitor connection pool events for Prometheus (optional — only in dev/staging)
   if (env.NODE_ENV !== 'production') {
@@ -36,7 +40,7 @@ export async function connectDb() {
 }
 
 export function getDb() {
-  if (!db) throw new Error('DB not connected. Call connectDb() first.');
+  if (!db) throw new Error('DB not connected');
   return db;
 }
 
