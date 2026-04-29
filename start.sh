@@ -88,14 +88,23 @@ cd "$FRONTEND"
 lsof -ti :3000 | xargs kill -9 2>/dev/null || true
 sleep 0.5
 
+# Check if production build exists
+if [ -d "$FRONTEND/build" ] || [ -d "$FRONTEND/.next" ]; then
+  FRONTEND_CMD="npm start"
+  echo -e "  ${CYAN}Mode: PRODUCTION (fast)${NC}"
+else
+  FRONTEND_CMD="npm run dev"
+  echo -e "  ${YELLOW}Mode: DEV (no build found — run 'npm run build' for faster performance)${NC}"
+fi
+
 # Start frontend in new Terminal tab
 osascript -e "
 tell application \"Terminal\"
   activate
-  do script \"cd '$FRONTEND' && npm run dev\"
+  do script \"cd '$FRONTEND' && $FRONTEND_CMD\"
 end tell
 " 2>/dev/null || {
-  nohup npm run dev > "$ROOT/frontend.log" 2>&1 &
+  nohup $FRONTEND_CMD > "$ROOT/frontend.log" 2>&1 &
   echo "  (running in background — logs: $ROOT/frontend.log)"
 }
 echo -e "${GREEN}✅ Frontend → Starting on http://localhost:3000${NC}"
