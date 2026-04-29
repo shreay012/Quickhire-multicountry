@@ -5,8 +5,7 @@ import ReduxProvider from "@/lib/redux/providers/ReduxProvider";
 import { NextIntlClientProvider } from "next-intl";
 import { getLocale, getMessages } from "next-intl/server";
 import { getLocaleDir } from "@/lib/i18n/config";
-import { Toaster } from "react-hot-toast";
-import { ErrorBoundary } from "@/components/ErrorBoundary";
+import ClientProviders from "@/components/providers/ClientProviders";
 
 export const metadata = {
   metadataBase: "http://localhost:3000",
@@ -45,16 +44,9 @@ export default async function RootLayout({ children }) {
         <NextIntlClientProvider locale={locale} messages={messages}>
           <ReduxProvider>
             <ThemeRegistry>
-              <ErrorBoundary>
-              <LayoutWrapper>{children}</LayoutWrapper>
-              </ErrorBoundary>
-              <Toaster
-                position="top-right"
-                toastOptions={{
-                  style: { fontFamily: 'inherit', borderRadius: '12px', fontSize: '14px' },
-                  success: { iconTheme: { primary: '#45A735', secondary: '#fff' } },
-                }}
-              />
+              <ClientProviders>
+                <LayoutWrapper>{children}</LayoutWrapper>
+              </ClientProviders>
             </ThemeRegistry>
           </ReduxProvider>
         </NextIntlClientProvider>
