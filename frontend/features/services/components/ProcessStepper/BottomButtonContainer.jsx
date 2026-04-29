@@ -1,4 +1,5 @@
 "use client";
+import { showError, showSuccess } from '@/lib/utils/toast';
 
 import React, { useState } from "react";
 import { useDispatch } from "react-redux";
@@ -82,7 +83,7 @@ const BottomButtonContainer = () => {
       const serviceId = localStorage.getItem("_service_id");
 
       if (!serviceId) {
-        alert("Service ID is missing. Please go back and select a service.");
+        showError("Service ID is missing. Please go back and select a service.");
         return;
       }
 
@@ -171,10 +172,10 @@ const BottomButtonContainer = () => {
           );
           nextStep();
         } else {
-          alert("Failed to get pricing. Please try again.");
+          showError("Failed to get pricing. Please try again.");
         }
       } catch (error) {
-        alert("Failed to get pricing. Please try again.");
+        showError("Failed to get pricing. Please try again.");
       } finally {
         setIsPricingLoading(false);
       }

@@ -1,4 +1,5 @@
 'use client';
+import { showError, showSuccess } from '@/lib/utils/toast';
 
 import { useState, useEffect } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
@@ -102,11 +103,11 @@ const ProfileForm = () => {
       if (result.type === 'userProfile/updateUserProfile/fulfilled') {
         setIsEditing(false);
       } else if (result.type === 'userProfile/updateUserProfile/rejected') {
-        alert(result.payload || 'Failed to update profile. Please try again.');
+        showError(result.payload || 'Failed to update profile. Please try again.');
       }
     } catch (error) {
       console.error('Error updating profile:', error);
-      alert('Failed to update profile. Please try again.');
+      showError('Failed to update profile. Please try again.');
     } finally {
       setIsSaving(false);
     }

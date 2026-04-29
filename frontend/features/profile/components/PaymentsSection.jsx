@@ -1,4 +1,5 @@
 "use client";
+import { showError, showSuccess } from '@/lib/utils/toast';
 
 import { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
@@ -52,7 +53,7 @@ const PaymentsSection = () => {
       window.URL.revokeObjectURL(url);
     } catch (error) {
       console.error("Failed to download invoice:", error);
-      alert("Failed to download invoice. Please try again.");
+      showError("Failed to download invoice. Please try again.");
     } finally {
       setDownloadingInvoices((prev) => ({ ...prev, [jobId]: false }));
     }

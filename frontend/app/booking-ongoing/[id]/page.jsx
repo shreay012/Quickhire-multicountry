@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams, useSearchParams, useRouter } from 'next/navigation';
+import { showError, showSuccess } from '@/lib/utils/toast';
 import ChatPanel from '@/features/booking/components/ChatPanel';
 import BookingTimeline from '@/features/booking/components/BookingTimeline';
 import { bookingService, paymentService } from '@/lib/services/bookingApi';
@@ -251,6 +252,9 @@ const BookingOngoingPage = () => {
   const [actionBusy, setActionBusy] = useState(null);
   const [showExtendModal, setShowExtendModal] = useState(false);
   const [extendWarningShown, setExtendWarningShown] = useState(false);
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [cancelReason, setCancelReason] = useState('');
+  const [showExtendWarningBanner, setShowExtendWarningBanner] = useState(false);
 
   const currentUser = typeof window !== 'undefined' ? getCurrentUser() : null;
   const currentUserId = currentUser?._id || null;
@@ -286,27 +290,24 @@ const BookingOngoingPage = () => {
     return () => sock.off('booking:status', onStatus);
   }, [bookingId, loadBooking]);
 
-  // 30-min warning handler
+  // 30-min warning handler — show in-page banner instead of browser confirm
   const handle30MinWarning = useCallback(() => {
     if (extendWarningShown) return;
     setExtendWarningShown(true);
-    // Show in-page warning — setShowExtendModal would be too intrusive, just show a toast-like alert
-    const confirmed = window.confirm(
-      '⏱ Your booking ends in 30 minutes!\n\nWould you like to extend your booking time?'
-    );
-    if (confirmed) setShowExtendModal(true);
+    setShowExtendWarningBanner(true);
   }, [extendWarningShown]);
 
   const handleCancel = async () => {
-    if (!bookingId) return;
-    const reason = window.prompt('Reason for cancellation?');
-    if (!reason) return;
+    if (!bookingId || !cancelReason.trim()) return;
     try {
       setActionBusy('cancel');
-      await bookingService.cancelBooking(bookingId, reason);
+      setShowCancelModal(false);
+      await bookingService.cancelBooking(bookingId, cancelReason.trim());
+      setCancelReason('');
+      showSuccess('Booking cancelled successfully.');
       await loadBooking();
     } catch (e) {
-      alert(e?.response?.data?.message || 'Failed to cancel booking');
+      showError(e?.response?.data?.message || 'Failed to cancel booking');
     } finally {
       setActionBusy(null);
     }
@@ -316,7 +317,7 @@ const BookingOngoingPage = () => {
     setShowExtendModal(false);
     setExtendWarningShown(false); // allow another warning after extension
     await loadBooking();
-    alert('✅ Booking extended successfully!');
+    showSuccess('✅ Booking extended successfully!');
   };
 
   if (!bookingId) return <div className="p-6 text-gray-600">Missing booking id.</div>;
@@ -367,7 +368,7 @@ const BookingOngoingPage = () => {
               )}
               {isCancellable && (
                 <button
-                  onClick={handleCancel}
+                  onClick={() => setShowCancelModal(true)}
                   disabled={actionBusy === 'cancel'}
                   className="px-4 py-2 rounded-xl bg-red-500 text-white text-sm font-semibold hover:bg-red-600 disabled:opacity-50 transition-colors"
                 >
@@ -456,6 +457,52 @@ const BookingOngoingPage = () => {
           </div>
         </div>
       </div>
+
+      {/* 30-min Warning Banner */}
+      {showExtendWarningBanner && (
+        <div className="fixed bottom-6 right-6 z-40 bg-orange-50 border border-orange-300 rounded-2xl p-5 shadow-2xl max-w-sm">
+          <button onClick={() => setShowExtendWarningBanner(false)} className="absolute top-3 right-3 text-gray-400 hover:text-gray-600 text-xl leading-none">×</button>
+          <p className="font-bold text-orange-700 mb-1">⏱ Booking ends in 30 minutes!</p>
+          <p className="text-orange-600 text-sm mb-4">Add more hours to keep your session going.</p>
+          <div className="flex gap-2">
+            <button onClick={() => { setShowExtendWarningBanner(false); setShowExtendModal(true); }}
+              className="flex-1 bg-[#45A735] text-white font-bold py-2 rounded-xl text-sm hover:bg-[#3d942d]">
+              Extend Now
+            </button>
+            <button onClick={() => setShowExtendWarningBanner(false)}
+              className="px-4 py-2 border border-gray-200 text-gray-600 rounded-xl text-sm hover:bg-gray-50">
+              Dismiss
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Cancel Booking Modal */}
+      {showCancelModal && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl w-full max-w-sm shadow-2xl p-6">
+            <h2 className="text-lg font-bold text-gray-800 mb-1">Cancel Booking</h2>
+            <p className="text-gray-500 text-sm mb-4">Please provide a reason for cancellation.</p>
+            <textarea
+              value={cancelReason}
+              onChange={e => setCancelReason(e.target.value)}
+              placeholder="e.g. Project requirements changed..."
+              rows={3}
+              className="w-full border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:border-red-400 resize-none mb-4"
+            />
+            <div className="flex gap-3">
+              <button onClick={() => { setShowCancelModal(false); setCancelReason(''); }}
+                className="flex-1 border border-gray-200 text-gray-600 font-semibold py-2.5 rounded-xl text-sm hover:bg-gray-50">
+                Keep Booking
+              </button>
+              <button onClick={handleCancel} disabled={!cancelReason.trim() || actionBusy === 'cancel'}
+                className="flex-1 bg-red-500 text-white font-bold py-2.5 rounded-xl text-sm hover:bg-red-600 disabled:opacity-50">
+                {actionBusy === 'cancel' ? 'Cancelling…' : 'Confirm Cancel'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Extend Booking Modal */}
       {showExtendModal && bookingData && (

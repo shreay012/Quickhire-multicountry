@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from "react";
+import { showError, showSuccess } from "@/lib/utils/toast";
 import {
   Box,
   Typography,
@@ -532,9 +533,7 @@ const DetailsStep = () => {
             } catch (error) {
               console.error("❌ Error checking payment status:", error);
               setIsProcessingPayment(false);
-              alert(
-                "Payment completed but status check failed. Please contact support.",
-              );
+              showError("Payment completed but status check failed. Please contact support.");
             }
           },
 

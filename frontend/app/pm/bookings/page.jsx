@@ -1,4 +1,5 @@
 'use client';
+import { showError, showSuccess } from '@/lib/utils/toast';
 
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
@@ -54,7 +55,7 @@ export default function PmBookingsPage() {
       await staffApi.post(`/pm/bookings/${id}/${kind}`, {});
       load();
     } catch (e) {
-      alert(e?.response?.data?.error?.message || `Failed to ${kind}`);
+      showError(e?.response?.data?.error?.message || `Failed to ${kind}`);
     } finally {
       setBusy((b) => ({ ...b, [id]: null }));
     }

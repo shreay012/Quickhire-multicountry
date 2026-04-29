@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import ReactDOM from "react-dom";
+import { showError, showSuccess } from "@/lib/utils/toast";
 import {
   Box,
   Typography,
@@ -278,7 +279,7 @@ const SummaryStep = () => {
       // Guest just logged in — create job from stored pricing data, then pay
       const storedPricingData = localStorage.getItem("_pricing_data");
       if (!storedPricingData) {
-        alert("Booking data not found. Please start again.");
+        showError("Booking data not found. Please start again.");
         return;
       }
       try {
@@ -323,7 +324,7 @@ const SummaryStep = () => {
       } catch (e) {
         console.error("❌ Job creation failed:", e);
         setIsProcessingPayment(false);
-        alert("Failed to create booking. Please try again.");
+        showError("Failed to create booking. Please try again.");
         return;
       }
     }
@@ -383,9 +384,7 @@ const SummaryStep = () => {
           } catch (error) {
             console.error("❌ Error checking payment status:", error);
             setIsProcessingPayment(false);
-            alert(
-              "Payment completed but status check failed. Please contact support.",
-            );
+            showError("Payment completed but status check failed. Please contact support.");
           }
         },
 
@@ -422,7 +421,7 @@ const SummaryStep = () => {
       }
     } catch (error) {
       console.error("❌ Error creating payment order:", error);
-      alert("Failed to initiate payment. Please try again.");
+      showError("Failed to initiate payment. Please try again.");
       setIsProcessingPayment(false);
     }
   };

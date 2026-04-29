@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Box, Typography, TextField, Checkbox, Button, Dialog, DialogContent } from "@mui/material";
 import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
+import { showError, showSuccess } from "@/lib/utils/toast";
 import { useStepperContext } from "./StepperContext";
 import { useSelector, useDispatch } from "react-redux";
 import { useSearchParams } from "next/navigation";
@@ -209,7 +210,7 @@ const PaymentStep = () => {
     // Get jobId from query params (should be set after login)
     const currentJobId = searchParams.get("jobId");
     if (!currentJobId) {
-      alert("No job ID found. Please try again.");
+      showError("No job ID found. Please try again.");
       return;
     }
 
@@ -257,9 +258,7 @@ const PaymentStep = () => {
           } catch (error) {
             console.error("❌ Error checking payment status:", error);
             setIsProcessingPayment(false);
-            alert(
-              "Payment completed but status check failed. Please contact support.",
-            );
+            showError("Payment completed but status check failed. Please contact support.");
           }
         },
 
@@ -296,7 +295,7 @@ const PaymentStep = () => {
       }
     } catch (error) {
       console.error("❌ Error creating payment order:", error);
-      alert("Failed to initiate payment. Please try again.");
+      showError("Failed to initiate payment. Please try again.");
       setIsProcessingPayment(false);
     }
   };

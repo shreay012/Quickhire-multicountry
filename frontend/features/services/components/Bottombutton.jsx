@@ -1,4 +1,5 @@
 "use client";
+import { showError, showSuccess } from '@/lib/utils/toast';
 
 import React, { useState } from "react";
 import { Box, Button } from "@mui/material";
@@ -71,7 +72,7 @@ const Bottombutton = () => {
 
       if (!serviceId) {
         console.error("❌ Service ID not found in localStorage");
-        alert("Service ID is missing. Please go back and select a service.");
+        showError("Service ID is missing. Please go back and select a service.");
         return;
       }
 
@@ -203,11 +204,11 @@ const Bottombutton = () => {
         } else {
           // Handle rejected case
           console.error("❌ Pricing API Error:", resultAction.payload);
-          alert("Failed to get pricing. Please try again.");
+          showError("Failed to get pricing. Please try again.");
         }
       } catch (error) {
         console.error("❌ Pricing API Error:", error);
-        alert("Failed to get pricing. Please try again.");
+        showError("Failed to get pricing. Please try again.");
       } finally {
         setIsPricingLoading(false);
       }

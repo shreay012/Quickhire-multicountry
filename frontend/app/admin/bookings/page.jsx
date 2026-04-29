@@ -1,4 +1,5 @@
 'use client';
+import { showError, showSuccess } from '@/lib/utils/toast';
 
 import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
@@ -39,7 +40,7 @@ export default function AdminBookingsPage() {
   const confirm = async (id) => {
     setBusy((b) => ({ ...b, [id]: 'confirm' }));
     try { await staffApi.post(`/admin/bookings/${id}/confirm`); load(); }
-    catch (e) { alert(e?.response?.data?.error?.message || 'Failed'); }
+    catch (e) { showError(e?.response?.data?.error?.message || 'Failed'); }
     finally { setBusy((b) => ({ ...b, [id]: null })); }
   };
 
@@ -50,7 +51,7 @@ export default function AdminBookingsPage() {
       await staffApi.post(`/admin/bookings/${showAssign}/assign-pm`, { pmId });
       setShowAssign(null); setPmId(''); load();
     } catch (e) {
-      alert(e?.response?.data?.error?.message || 'Failed');
+      showError(e?.response?.data?.error?.message || 'Failed');
     } finally {
       setBusy((b) => ({ ...b, [showAssign]: null }));
     }

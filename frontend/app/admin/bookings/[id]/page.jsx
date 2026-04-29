@@ -1,4 +1,5 @@
 'use client';
+import { showError, showSuccess } from '@/lib/utils/toast';
 
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
@@ -93,7 +94,7 @@ export default function AdminBookingDetailPage() {
   const confirm = async () => {
     setBusy('confirm');
     try { await staffApi.post(`/admin/bookings/${id}/confirm`); await load(); }
-    catch (e) { alert(e?.response?.data?.error?.message || 'Failed'); }
+    catch (e) { showError(e?.response?.data?.error?.message || 'Failed'); }
     finally { setBusy(null); }
   };
   const reject = async () => {
@@ -101,21 +102,21 @@ export default function AdminBookingDetailPage() {
     const reason = window.prompt('Reason for cancellation:') || '';
     setBusy('reject');
     try { await staffApi.patch(`/admin/bookings/${id}/reject`, { reason }); await load(); }
-    catch (e) { alert(e?.response?.data?.error?.message || 'Failed'); }
+    catch (e) { showError(e?.response?.data?.error?.message || 'Failed'); }
     finally { setBusy(null); }
   };
   const assignPm = async () => {
     if (!pickPm) return;
     setBusy('pm');
     try { await staffApi.post(`/admin/bookings/${id}/assign-pm`, { pmId: pickPm }); setPickPm(''); await load(); }
-    catch (e) { alert(e?.response?.data?.error?.message || 'Failed'); }
+    catch (e) { showError(e?.response?.data?.error?.message || 'Failed'); }
     finally { setBusy(null); }
   };
   const assignRes = async () => {
     if (!pickRes) return;
     setBusy('res');
     try { await staffApi.post(`/admin/bookings/${id}/assign-resource`, { resourceId: pickRes }); setPickRes(''); await load(); }
-    catch (e) { alert(e?.response?.data?.error?.message || 'Failed'); }
+    catch (e) { showError(e?.response?.data?.error?.message || 'Failed'); }
     finally { setBusy(null); }
   };
   const sendMessage = async (e) => {
@@ -127,7 +128,7 @@ export default function AdminBookingDetailPage() {
       const r = await staffApi.post(`/admin/bookings/${id}/messages`, { msg: text });
       setMessages((arr) => [...arr, r.data?.data]);
       setDraft('');
-    } catch (e) { alert(e?.response?.data?.error?.message || 'Failed to send'); }
+    } catch (e) { showError(e?.response?.data?.error?.message || 'Failed to send'); }
     finally { setSending(false); }
   };
 

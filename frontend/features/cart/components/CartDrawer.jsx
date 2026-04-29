@@ -1,4 +1,5 @@
 "use client";
+import { showError, showSuccess } from '@/lib/utils/toast';
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
@@ -103,7 +104,7 @@ const CartDrawer = ({ isOpen, onClose, jobData, onRefresh }) => {
       setItemToDelete(null);
     } catch (error) {
       console.error("❌ Error deleting service:", error);
-      alert("Failed to delete service. Please try again.");
+      showError("Failed to delete service. Please try again.");
       setShowDeleteModal(false);
       setItemToDelete(null);
     } finally {
@@ -135,7 +136,7 @@ const CartDrawer = ({ isOpen, onClose, jobData, onRefresh }) => {
     e.preventDefault();
 
     if (!jobData?.data?.job) {
-      alert("Cart data not available");
+      showError("Cart data not available");
       return;
     }
 
@@ -191,7 +192,7 @@ const CartDrawer = ({ isOpen, onClose, jobData, onRefresh }) => {
             // window.location.href = '/booking-success';
           } catch (error) {
             console.error("❌ Error checking payment status:", error);
-            alert(
+            showError(
               "Payment completed but status check failed. Please contact support.",
             );
           }
@@ -234,7 +235,7 @@ const CartDrawer = ({ isOpen, onClose, jobData, onRefresh }) => {
       }
     } catch (error) {
       console.error("❌ Error creating payment order:", error);
-      alert("Failed to initiate payment. Please try again.");
+      showError("Failed to initiate payment. Please try again.");
       setIsProcessing(false);
     }
   };

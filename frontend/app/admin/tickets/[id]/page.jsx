@@ -1,4 +1,5 @@
 'use client';
+import { showError, showSuccess } from '@/lib/utils/toast';
 
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
@@ -44,14 +45,14 @@ export default function AdminTicketDetailPage() {
       const r = await staffApi.post(`/admin/tickets/${id}/message`, { msg: text });
       setMessages((arr) => [...arr, r.data?.data]);
       setDraft('');
-    } catch (e) { alert(e?.response?.data?.error?.message || 'Failed'); }
+    } catch (e) { showError(e?.response?.data?.error?.message || 'Failed'); }
     finally { setSending(false); }
   };
 
   const setStatus = async (s) => {
     setBusy(s);
     try { await staffApi.patch(`/admin/tickets/${id}/status`, { status: s }); await load(); }
-    catch (e) { alert(e?.response?.data?.error?.message || 'Failed'); }
+    catch (e) { showError(e?.response?.data?.error?.message || 'Failed'); }
     finally { setBusy(null); }
   };
 

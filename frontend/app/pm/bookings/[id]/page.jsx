@@ -1,4 +1,5 @@
 'use client';
+import { showError, showSuccess } from '@/lib/utils/toast';
 
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
@@ -124,7 +125,7 @@ export default function PmBookingDetailPage() {
       await staffApi.post(`/pm/bookings/${id}/${kind}`, {});
       await load();
     } catch (e) {
-      alert(e?.response?.data?.error?.message || `Failed to ${kind}`);
+      showError(e?.response?.data?.error?.message || `Failed to ${kind}`);
     } finally { setBusy(null); }
   };
 
@@ -136,7 +137,7 @@ export default function PmBookingDetailPage() {
       setPickResource('');
       await load();
     } catch (e) {
-      alert(e?.response?.data?.error?.message || 'Failed to assign resource');
+      showError(e?.response?.data?.error?.message || 'Failed to assign resource');
     } finally { setBusy(null); }
   };
 
@@ -150,7 +151,7 @@ export default function PmBookingDetailPage() {
       setMessages((arr) => [...arr, r.data?.data]);
       setDraft('');
     } catch (e) {
-      alert(e?.response?.data?.error?.message || 'Failed to send');
+      showError(e?.response?.data?.error?.message || 'Failed to send');
     } finally { setSending(false); }
   };
 

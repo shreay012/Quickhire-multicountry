@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef, useMemo } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { usePrice } from "@/lib/hooks/usePrice";
+import { showError, showWarning } from "@/lib/utils/toast";
 import {
   Box,
   Typography,
@@ -1890,9 +1891,7 @@ const HoursStep = ({ selectedService: selectedServiceProp, serviceId } = {}) => 
             const techIds = storedTechIds ? JSON.parse(storedTechIds) : [];
             const serviceId = localStorage.getItem("_service_id");
             if (!serviceId) {
-              alert(
-                "Service ID is missing. Please go back and select a service.",
-              );
+              showError("Service ID is missing. Please go back and select a service.");
               return;
             }
             // let durationTime = 9;
@@ -2047,7 +2046,7 @@ const HoursStep = ({ selectedService: selectedServiceProp, serviceId } = {}) => 
 
                       nextStep();
                     } else {
-                      alert("Failed to update job. Please try again.");
+                      showError("Failed to update job. Please try again.");
                     }
                   } else {
                     // NO EXISTING BOOKING - CREATE NEW JOB
@@ -2139,7 +2138,7 @@ const HoursStep = ({ selectedService: selectedServiceProp, serviceId } = {}) => 
 
                       nextStep();
                     } else {
-                      alert("Failed to create job. Please try again.");
+                      showError("Failed to create job. Please try again.");
                     }
                   }
                 } catch (bookingError) {
@@ -2166,7 +2165,7 @@ const HoursStep = ({ selectedService: selectedServiceProp, serviceId } = {}) => 
                     (typeof bookingError === "string" ? bookingError : null) ||
                     "Failed to process booking. Please try again.";
                   if (status === 401 || /token|unauthor|expired/i.test(String(msg))) {
-                    alert("Your session has expired. Please log in again.");
+                    showWarning("Your session has expired. Please log in again.");
                     if (typeof window !== "undefined") {
                       ["token", "user", "userType", "isNewUser"].forEach((k) =>
                         localStorage.removeItem(k),
@@ -2177,7 +2176,7 @@ const HoursStep = ({ selectedService: selectedServiceProp, serviceId } = {}) => 
                     }
                     return;
                   }
-                  alert(msg);
+                  showError(msg);
                 }
               } else {
                 // Guest user - compute pricing locally and continue without protected API
@@ -2260,7 +2259,7 @@ const HoursStep = ({ selectedService: selectedServiceProp, serviceId } = {}) => 
               }
             } catch (error) {
               console.error("❌ Error:", error);
-              alert("Failed to process request. Please try again.");
+              showError("Failed to process request. Please try again.");
             } finally {
               setIsPricingLoading(false);
             }
