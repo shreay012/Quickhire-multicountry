@@ -49,8 +49,15 @@ const SummaryStep = () => {
   const [isMounted, setIsMounted] = useState(false);
   const [showTermsDrawer, setShowTermsDrawer] = useState(false);
 
+  const normalizeJobId = (rawJobId) => {
+    const normalized = typeof rawJobId === "string" ? rawJobId.trim() : "";
+    return normalized && normalized !== "undefined" && normalized !== "null"
+      ? normalized
+      : null;
+  };
+
   // Get jobId from query params
-  const jobId = searchParams.get("jobId");
+  const jobId = normalizeJobId(searchParams.get("jobId"));
 
   // Get job details from Redux
   const { jobDetails, isFetchingJobDetails } = useSelector(
@@ -276,7 +283,7 @@ const SummaryStep = () => {
     console.log("👤 Logged in user - initiating payment");
 
     if (!jobId) {
-      // Guest just logged in — create job from stored pricing data, then pay
+      // No jobId — try to create job from stored pricing data
       const storedPricingData = localStorage.getItem("_pricing_data");
       if (!storedPricingData) {
         showError("Booking data not found. Please start again.");
@@ -285,8 +292,51 @@ const SummaryStep = () => {
       try {
         setIsProcessingPayment(true);
         const pricingData = JSON.parse(storedPricingData);
-        const serviceData = pricingData.data?.servicesWithPricing?.[0];
-        if (!serviceData) throw new Error("Service data missing");
+
+        // Handle both guest format { data: { servicesWithPricing: [...] } }
+        // AND auth format (job object from createJob response)
+        let serviceData = pricingData.data?.servicesWithPricing?.[0];
+
+        // Auth-user format: job object has .services[] or .job.services[]
+        if (!serviceData) {
+          const job = pricingData.job || pricingData.data?.job || pricingData;
+          const svc = job.services?.[0];
+          if (svc) {
+            serviceData = {
+              serviceId: svc.serviceId,
+              technologyIds: svc.technologyIds || [],
+              selectedDays: svc.selectedDays || 1,
+              requirements: svc.requirements || "Booked from web",
+              preferredStartDate: svc.preferredStartDate,
+              preferredEndDate: svc.preferredEndDate,
+              durationTime: svc.durationTime,
+              timeSlot: svc.timeSlot || { startTime: svc.startTime || "09:00", endTime: svc.endTime || "18:00" },
+              bookingType: svc.bookingType || "later",
+            };
+          }
+        }
+
+        // If job already exists in pricing data (auth user already created it)
+        const existingJobId = pricingData.job?._id || pricingData.data?.job?._id
+          || pricingData._id || pricingData.data?._id;
+        if (existingJobId) {
+          // Job already created — just proceed to payment
+          dispatch(setSelectedJobId(existingJobId));
+          router.push(`?jobId=${existingJobId}`, { scroll: false });
+          await dispatch(fetchJobById(existingJobId)).unwrap();
+          const orderResponse = await paymentService.createOrder(existingJobId, total);
+          const paymentData = orderResponse.data.data;
+          if (paymentData?.mock) {
+            localStorage.removeItem("_pricing_data");
+            router.push(`/payment-success?jobId=${existingJobId}`);
+            return;
+          }
+          setIsProcessingPayment(false);
+          return;
+        }
+
+        if (!serviceData) throw new Error("Service data missing from pricing data");
+
         const jobPayload = {
           services: [{
             serviceId: serviceData.serviceId?._id || serviceData.serviceId,
@@ -304,21 +354,17 @@ const SummaryStep = () => {
         };
         const createdJob = await dispatch(createJob(jobPayload)).unwrap();
         const newJobId = createdJob.data?._id || createdJob._id;
-        if (!newJobId) throw new Error("Job creation failed");
+        if (!newJobId) throw new Error("Job creation failed — no ID returned");
         dispatch(setSelectedJobId(newJobId));
         router.push(`?jobId=${newJobId}`, { scroll: false });
-        // Re-fetch job details and proceed to payment on next render
         await dispatch(fetchJobById(newJobId)).unwrap();
-        // Retry payment with new jobId
         const orderResponse = await paymentService.createOrder(newJobId, total);
         const paymentData = orderResponse.data.data;
         if (paymentData?.mock) {
-          localStorage.removeItem("_current_job_id");
           localStorage.removeItem("_pricing_data");
           router.push(`/payment-success?jobId=${newJobId}`);
           return;
         }
-        // fall through to Razorpay with newJobId below is handled after this block
         setIsProcessingPayment(false);
         return;
       } catch (e) {
