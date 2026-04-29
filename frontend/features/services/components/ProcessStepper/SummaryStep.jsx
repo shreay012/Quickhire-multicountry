@@ -355,11 +355,29 @@ const SummaryStep = () => {
           }],
         };
         const createdJob = await dispatch(createJob(jobPayload)).unwrap();
-        // Backend returns { job: { _id, ... } } → thunk extracts to that level
-        const newJobId = String(
-          createdJob.job?._id || createdJob.data?._id || createdJob._id || ""
-        ).replace(/^ObjectId\(["']?|["']?\)$/g, "");
-        if (!newJobId) throw new Error("Job creation failed — no ID returned");
+
+        // Helper: extract string ID from any MongoDB ObjectId format
+        const extractId = (val) => {
+          if (!val) return "";
+          if (typeof val === "string") return val;
+          // MongoDB Extended JSON: { $oid: "..." }
+          if (val.$oid) return String(val.$oid);
+          // ObjectId object with toString
+          const str = String(val);
+          // Strip ObjectId(...) wrapper if present
+          return str.replace(/^ObjectId\(["']?|["']?\)$/g, "").replace(/[^a-f0-9]/gi, "");
+        };
+
+        // Exhaustively search all known response shapes
+        const rawId =
+          createdJob?.job?._id ?? createdJob?.job?.id ??
+          createdJob?.data?.job?._id ?? createdJob?.data?._id ?? createdJob?.data?.id ??
+          createdJob?._id ?? createdJob?.id;
+
+        const newJobId = extractId(rawId) || (typeof createdJob === "string" ? createdJob : "");
+        if (!newJobId || newJobId === "undefined" || newJobId === "null" || newJobId.length < 12) {
+          throw new Error(`Job creation failed — response was: ${JSON.stringify(createdJob)?.slice(0, 300)}`);
+        }
         dispatch(setSelectedJobId(newJobId));
         router.push(`?jobId=${newJobId}`, { scroll: false });
         await dispatch(fetchJobById(newJobId)).unwrap();
