@@ -317,8 +317,10 @@ const SummaryStep = () => {
         }
 
         // If job already exists in pricing data (auth user already created it)
-        const existingJobId = pricingData.job?._id || pricingData.data?.job?._id
-          || pricingData._id || pricingData.data?._id;
+        const existingJobId = String(
+          pricingData.job?._id || pricingData.data?.job?._id ||
+          pricingData._id || pricingData.data?._id || ""
+        ).replace(/^ObjectId\(["']?|["']?\)$/g, "") || null;
         if (existingJobId) {
           // Job already created — just proceed to payment
           dispatch(setSelectedJobId(existingJobId));
@@ -353,7 +355,10 @@ const SummaryStep = () => {
           }],
         };
         const createdJob = await dispatch(createJob(jobPayload)).unwrap();
-        const newJobId = createdJob.data?._id || createdJob._id;
+        // Backend returns { job: { _id, ... } } → thunk extracts to that level
+        const newJobId = String(
+          createdJob.job?._id || createdJob.data?._id || createdJob._id || ""
+        ).replace(/^ObjectId\(["']?|["']?\)$/g, "");
         if (!newJobId) throw new Error("Job creation failed — no ID returned");
         dispatch(setSelectedJobId(newJobId));
         router.push(`?jobId=${newJobId}`, { scroll: false });
