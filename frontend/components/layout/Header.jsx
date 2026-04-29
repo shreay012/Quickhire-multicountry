@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import Image from "next/image";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useTranslations } from "next-intl";
 import axiosInstance, { userAuth } from "@/lib/axios/axiosInstance";
 import LocaleCurrencySwitcher from "@/components/common/LocaleCurrencySwitcher";
@@ -23,7 +23,11 @@ const Header = () => {
   const [user, setUser] = useState(null);
   const [stats, setStats] = useState({ unreadNotificationsCount: 0, cartItemCount: 0, totalPendingJobs: 0 });
 
-  const refreshAuthAndStats = useCallback(async () => {
+  // Cache stats to avoid API call on every render
+  const statsLastFetched = useRef(0);
+  const STATS_TTL = 60_000; // re-fetch max once per minute
+
+  const refreshAuthAndStats = useCallback(async (force = false) => {
     if (typeof window === "undefined") return;
     const authed = userAuth.isAuthenticated();
     setIsAuthenticated(authed);
@@ -34,6 +38,10 @@ const Header = () => {
       setUser(null);
     }
     if (authed) {
+      const now = Date.now();
+      // Skip API call if stats fetched recently (unless forced)
+      if (!force && now - statsLastFetched.current < STATS_TTL) return;
+      statsLastFetched.current = now;
       try {
         const r = await axiosInstance.get("/dashboard/stats");
         const d = r?.data?.data || {};
@@ -52,8 +60,8 @@ const Header = () => {
 
   useEffect(() => {
     refreshAuthAndStats();
-    const onLogin = () => refreshAuthAndStats();
-    const onLogout = () => refreshAuthAndStats();
+    const onLogin = () => refreshAuthAndStats(true);  // force on login
+    const onLogout = () => refreshAuthAndStats(true); // force on logout
     const onStorage = (e) => { if (!e.key || ['token', 'user'].includes(e.key)) refreshAuthAndStats(); };
     window.addEventListener("userLoggedIn", onLogin);
     window.addEventListener("userLoggedOut", onLogout);
@@ -65,8 +73,9 @@ const Header = () => {
     };
   }, [refreshAuthAndStats]);
 
-  // Refresh stats whenever route changes (best-effort)
+  // Route change: only refresh auth state (no API call unless TTL expired)
   useEffect(() => { refreshAuthAndStats(); }, [pathname, refreshAuthAndStats]);
+  // ↑ Uses TTL cache — won't hit /dashboard/stats on every navigation
 
   // Real-time notification badge update via socket
   useEffect(() => {
