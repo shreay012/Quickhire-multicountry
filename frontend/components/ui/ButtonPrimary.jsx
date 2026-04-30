@@ -2,8 +2,10 @@
 
 import { Button } from "@mui/material";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 
 const ButtonPrimary = () => {
+  const t = useTranslations("common");
   return (
     <>
       <Link href="/book-your-resource" style={{ textDecoration: "none" }}>
@@ -18,9 +20,6 @@ const ButtonPrimary = () => {
             fontFamily: "Open Sauce One Regular",
             minWidth: "unset",
             whiteSpace: "nowrap",
-            // boxShadow: "0px 14px 34px 0px #78EB5473",
-
-            // fontSize: "16px",
             fontSize: { xs: "11px", sm: "12px", md: "16px" },
             padding: {
               xs: "10px 14px",
@@ -50,7 +49,7 @@ const ButtonPrimary = () => {
           }}
         >
           <span style={{ position: "relative", zIndex: 1 }}>
-            Hire in 10 Minutes
+            {t("hireIn10Minutes")}
           </span>
         </Button>
       </Link>

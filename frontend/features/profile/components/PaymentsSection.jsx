@@ -3,6 +3,7 @@ import { showError, showSuccess } from '@/lib/utils/toast';
 
 import { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
+import { useTranslations } from 'next-intl';
 import { fetchPaymentHistory } from "@/lib/redux/slices/paymentSlice";
 import { paymentService } from "@/lib/services/paymentApi";
 import { Pagination } from "@/components/common";
@@ -10,6 +11,7 @@ import Image from "next/image";
 
 const PaymentsSection = () => {
   const dispatch = useDispatch();
+  const t = useTranslations('paymentsSection');
   const {
     history: payments,
     loading,
@@ -53,7 +55,7 @@ const PaymentsSection = () => {
       window.URL.revokeObjectURL(url);
     } catch (error) {
       console.error("Failed to download invoice:", error);
-      showError("Failed to download invoice. Please try again.");
+      showError(t('errorDownload'));
     } finally {
       setDownloadingInvoices((prev) => ({ ...prev, [jobId]: false }));
     }
@@ -88,14 +90,14 @@ const PaymentsSection = () => {
           className="font-[700] text-[18px] sm:text-[20px] lg:text-[24px]"
           style={{ color: "#202224" }}
         >
-          Payments
+          {t('title')}
         </h1>
       </div>
 
       {/* Table Container - Responsive */}
       {loading ? (
         <div className="flex justify-center items-center h-64">
-          <p>Loading...</p>
+          <p>{t('loading')}</p>
         </div>
       ) : error &&
         !error.includes("Cannot read properties of undefined") &&
@@ -113,28 +115,28 @@ const PaymentsSection = () => {
                   <thead>
                     <tr className="border-b border-gray-200 bg-gray-50">
                       <th className="px-6 py-4 text-left text-xs font-semibold text-[#333333]">
-                        Booking
+                        {t('booking')}
                       </th>
                       <th className="px-6 py-4 text-left text-xs font-semibold text-[#333333]">
-                        Transaction
+                        {t('transaction')}
                       </th>
                       <th className="px-6 py-4 text-left text-xs font-semibold text-[#333333]">
-                        Resource
+                        {t('resource')}
                       </th>
                       <th className="px-6 py-4 text-left text-xs font-semibold text-[#333333]">
-                        Date & Time
+                        {t('dateTime')}
                       </th>
                       <th className="px-6 py-4 text-left text-xs font-semibold text-[#333333]">
-                        Duration
+                        {t('duration')}
                       </th>
                       <th className="px-6 py-4 text-left text-xs font-semibold text-[#333333]">
-                        Price
+                        {t('price')}
                       </th>
                       <th className="px-6 py-4 text-left text-xs font-semibold text-[#333333]">
-                        Status
+                        {t('status')}
                       </th>
                       <th className="px-6 py-4 text-left text-xs font-semibold text-[#333333]">
-                        Action
+                        {t('action')}
                       </th>
                     </tr>
                   </thead>
@@ -157,7 +159,7 @@ const PaymentsSection = () => {
                           {new Date(payment.initiatedAt).toLocaleString()}
                         </td>
                         <td className="px-6 py-4 text-[12px] text-gray-900">
-                          {payment.duration} Hours
+                          {payment.duration} {t('hours')}
                         </td>
                         <td className="px-6 py-4 text-[12px] font-semibold text-green-600">
                           ₹{payment.amount}
@@ -250,7 +252,7 @@ const PaymentsSection = () => {
                         <div className="flex justify-between items-start">
                           <div>
                             <p className="text-xs font-semibold text-gray-500 mb-1">
-                              Booking ID
+                              {t('bookingId')}
                             </p>
                             <p className="text-sm font-semibold text-gray-900">
                               {payment.bookingId}
@@ -326,7 +328,7 @@ const PaymentsSection = () => {
                         <div className="grid grid-cols-2 gap-3">
                           <div>
                             <p className="text-xs font-semibold text-gray-500 mb-1">
-                              Transaction ID
+                              {t('transactionId')}
                             </p>
                             <p className="text-sm text-gray-600">
                               {payment.paymentId.split("_").pop()}
@@ -334,7 +336,7 @@ const PaymentsSection = () => {
                           </div>
                           <div>
                             <p className="text-xs font-semibold text-gray-500 mb-1">
-                              Resource
+                              {t('resource')}
                             </p>
                             <p className="text-sm text-gray-900">
                               {payment.service}
@@ -342,7 +344,7 @@ const PaymentsSection = () => {
                           </div>
                           <div>
                             <p className="text-xs font-semibold text-gray-500 mb-1">
-                              Date & Time
+                              {t('dateTime')}
                             </p>
                             <p className="text-sm text-gray-600">
                               {new Date(payment.initiatedAt).toLocaleString()}
@@ -350,15 +352,15 @@ const PaymentsSection = () => {
                           </div>
                           <div>
                             <p className="text-xs font-semibold text-gray-500 mb-1">
-                              Duration
+                              {t('duration')}
                             </p>
                             <p className="text-sm text-gray-900">
-                              {payment.duration} Hours
+                              {payment.duration} {t('hours')}
                             </p>
                           </div>
                           <div>
                             <p className="text-xs font-semibold text-gray-500 mb-1">
-                              Price
+                              {t('price')}
                             </p>
                             <p className="text-sm font-semibold text-green-600">
                               ₹{payment.amount}
@@ -366,7 +368,7 @@ const PaymentsSection = () => {
                           </div>
                           <div>
                             <p className="text-xs font-semibold text-gray-500 mb-1">
-                              Status
+                              {t('status')}
                             </p>
                             <div>{getStatusBadge(payment.status)}</div>
                           </div>
@@ -414,11 +416,10 @@ const PaymentsSection = () => {
             </svg>
           </div>
           <h3 className="text-lg font-semibold text-gray-700 mb-2">
-            No Payment Records
+            {t('noPaymentRecords')}
           </h3>
           <p className="text-gray-500 font-opensauce text-center text-sm">
-            Your payment history will appear here once you make your first
-            payment.
+            {t('noPaymentDesc')}
           </p>
         </div>
       )}

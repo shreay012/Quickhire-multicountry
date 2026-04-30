@@ -5,8 +5,12 @@ import { Box, Typography, Chip } from "@mui/material";
 import ArrowOutwardIcon from "@mui/icons-material/ArrowOutward";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import CancelIcon from "@mui/icons-material/Cancel";
+import { useTranslations } from "next-intl";
+import { useCmsTranslate } from "@/lib/i18n/useCmsTranslate";
 
 const SelectiveCard = ({ serviceData, isLoading }) => {
+  const tServiceDetails = useTranslations("serviceDetails");
+  const tCms = useCmsTranslate();
   // No longer fetching data here - receiving it as props
   console.log("SelectiveCard serviceData:", serviceData);
 
@@ -39,7 +43,7 @@ const SelectiveCard = ({ serviceData, isLoading }) => {
     return (
       <section style={{ backgroundColor: "#FFFFFF", padding: "48px 16px" }}>
         <div className="max-w-7xl mx-auto text-center">
-          <Typography>Loading service details...</Typography>
+          <Typography>{tServiceDetails("loading")}</Typography>
         </div>
       </section>
     );

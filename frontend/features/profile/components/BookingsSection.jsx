@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useRouter } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import { fetchOngoingBookings, fetchCompletedBookings } from '@/lib/redux/slices/bookingSlice/bookingSlice';
 import { getServiceIcon } from '@/lib/utils/serviceIcon';
 import { Pagination } from '@/components/common';
@@ -11,6 +12,8 @@ import Image from 'next/image';
 const BookingsSection = () => {
   const dispatch = useDispatch();
   const router = useRouter();
+  const t = useTranslations('bookingsSection');
+  const tBooking = useTranslations('booking');
   const [activeTab, setActiveTab] = useState('ongoing');
   
   // Get bookings from Redux
@@ -59,25 +62,25 @@ const BookingsSection = () => {
     // Map each service within the booking to a separate card
     return booking.services?.map((service) => {
       // Determine status based on assignedResource and projectManager
-      let statusTitle = 'Pending';
-      let statusMessage = 'TPM Assigning resource.';
+      let statusTitle = tBooking('pending');
+      let statusMessage = tBooking('tpmAssigningResource');
       let hasUnreadMessages = service.chatSummary?.unreadChatCount > 0;
       let statusType = 'pending'; // 'developer', 'pm', or 'pending'
-      
+
       if (service.assignedResource && service.assignedResource.name) {
         // Developer assigned
         statusTitle = service.assignedResource.name;
-        statusMessage = 'A developer has been assigned.';
+        statusMessage = tBooking('developerAssigned');
         statusType = 'developer';
       } else if (service.projectManager && service.projectManager.name) {
         // PM assigned
         statusTitle = service.projectManager.name;
-        statusMessage = 'Start chat with TPM';
+        statusMessage = tBooking('startChatTpm');
         statusType = 'pm';
       } else if (!service.assignedResource && !service.projectManager) {
         // No one assigned yet
-        statusTitle = 'Pending';
-        statusMessage = 'TPM Assigning resource.';
+        statusTitle = tBooking('pending');
+        statusMessage = tBooking('tpmAssigningResource');
         statusType = 'pending';
       }
       
@@ -141,7 +144,7 @@ const BookingsSection = () => {
     <div className="w-full lg:flex-1">
       {/* Header */}
       <div className="mb-8">
-        <h1 className="font-[700] text-[18px] sm:text-[20px] lg:text-[24px] mb-6" style={{ color: '#202224' }}>Bookings</h1>
+        <h1 className="font-[700] text-[18px] sm:text-[20px] lg:text-[24px] mb-6" style={{ color: '#202224' }}>{t('title')}</h1>
 
         {/* Tabs */}
         <div className="flex gap-8 border-b border-gray-300">
@@ -154,7 +157,7 @@ const BookingsSection = () => {
             }`}
             style={{ fontWeight: 700, fontSize: '14px' }}
           >
-            On Going Bookings
+            {t('ongoingTab')}
           </button>
           <button
             onClick={() => setActiveTab('completed')}
@@ -165,7 +168,7 @@ const BookingsSection = () => {
             }`}
             style={{ fontWeight: 700, fontSize: '14px' }}
           >
-            Completed Bookings
+            {t('completedTab')}
           </button>
         </div>
       </div>
@@ -176,7 +179,7 @@ const BookingsSection = () => {
           <div className="h-[480px] overflow-y-auto">
             {isFetchingOngoingBookings ? (
               <div className="flex justify-center items-center h-64">
-                <p>Loading bookings...</p>
+                <p>{t('loading')}</p>
               </div>
             ) : error ? (
               <div className="flex justify-center items-center h-64">
@@ -202,7 +205,7 @@ const BookingsSection = () => {
                           <span className="font-bold text-sm md:text-base lg:text-base" style={{ color: '#242424' }}>{booking.service}</span>
                         </div>
                         <span className="text-xs font-normal px-3 py-1 rounded-full" style={{ backgroundColor: '#45A7351A', color: '#45A735' }}>
-                          Recently Book
+                          {t('recentlyBook')}
                         </span>
                       </div>
 
@@ -211,19 +214,19 @@ const BookingsSection = () => {
 
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                         <div>
-                          <p className="text-xs font-opensauce mb-1" style={{ color: '#909090', fontWeight: 500 }}>Booking Id</p>
+                          <p className="text-xs font-opensauce mb-1" style={{ color: '#909090', fontWeight: 500 }}>{t('bookingId')}</p>
                           <p className="break-words" style={{ color: '#242424', fontWeight: 400, fontSize: '14px' }}>{booking.id}</p>
                         </div>
                         <div>
-                          <p className="text-xs font-opensauce mb-1" style={{ color: '#909090', fontWeight: 500 }}>Start Date</p>
+                          <p className="text-xs font-opensauce mb-1" style={{ color: '#909090', fontWeight: 500 }}>{t('startDate')}</p>
                           <p className="break-words" style={{ color: '#242424', fontWeight: 400, fontSize: '14px' }}>{booking.startDate}</p>
                         </div>
                         <div>
-                          <p className="text-xs font-opensauce mb-1" style={{ color: '#909090', fontWeight: 500 }}>End Date</p>
+                          <p className="text-xs font-opensauce mb-1" style={{ color: '#909090', fontWeight: 500 }}>{t('endDate')}</p>
                           <p className="break-words" style={{ color: '#242424', fontWeight: 400, fontSize: '14px' }}>{booking.endDate}</p>
                         </div>
                         <div>
-                          <p className="text-xs font-opensauce mb-1" style={{ color: '#909090', fontWeight: 500 }}>Duration</p>
+                          <p className="text-xs font-opensauce mb-1" style={{ color: '#909090', fontWeight: 500 }}>{t('duration')}</p>
                           <p className="break-words" style={{ color: '#242424', fontWeight: 400, fontSize: '14px' }}>{booking.duration}</p>
                         </div>
                       </div>
@@ -330,7 +333,7 @@ const BookingsSection = () => {
                         <path d="M9 14h6M9 19h6" stroke="#9CA3AF" strokeWidth="2" />
                       </svg>
                     </div>
-                    <p className="text-gray-500 font-opensauce text-center">No ongoing bookings</p>
+                    <p className="text-gray-500 font-opensauce text-center">{t('noOngoing')}</p>
                   </div>
                 )}
               </div>
@@ -356,7 +359,7 @@ const BookingsSection = () => {
           <div className="h-[480px] overflow-y-auto">
             {isFetchingCompletedBookings ? (
               <div className="flex justify-center items-center h-64">
-                <p>Loading completed bookings...</p>
+                <p>{t('loadingCompleted')}</p>
               </div>
             ) : error ? (
               <div className="flex justify-center items-center h-64">
@@ -387,19 +390,19 @@ const BookingsSection = () => {
                       {/* Details Grid */}
                       <div className="grid grid-cols-2 gap-4 mb-4">
                         <div>
-                          <p className="text-xs font-opensauce mb-1" style={{ color: '#909090', fontWeight: 500 }}>Booking Id</p>
+                          <p className="text-xs font-opensauce mb-1" style={{ color: '#909090', fontWeight: 500 }}>{t('bookingId')}</p>
                           <p className="break-words" style={{ color: '#242424', fontWeight: 400, fontSize: '14px' }}>{booking.id}</p>
                         </div>
                         <div>
-                          <p className="text-xs font-opensauce mb-1" style={{ color: '#909090', fontWeight: 500 }}>Start Date</p>
+                          <p className="text-xs font-opensauce mb-1" style={{ color: '#909090', fontWeight: 500 }}>{t('startDate')}</p>
                           <p className="break-words" style={{ color: '#242424', fontWeight: 400, fontSize: '14px' }}>{booking.startDate}</p>
                         </div>
                         <div>
-                          <p className="text-xs font-opensauce mb-1" style={{ color: '#909090', fontWeight: 500 }}>End Date</p>
+                          <p className="text-xs font-opensauce mb-1" style={{ color: '#909090', fontWeight: 500 }}>{t('endDate')}</p>
                           <p className="break-words" style={{ color: '#242424', fontWeight: 400, fontSize: '14px' }}>{booking.endDate}</p>
                         </div>
                         <div>
-                          <p className="text-xs font-opensauce mb-1" style={{ color: '#909090', fontWeight: 500 }}>Duration</p>
+                          <p className="text-xs font-opensauce mb-1" style={{ color: '#909090', fontWeight: 500 }}>{t('duration')}</p>
                           <p className="break-words" style={{ color: '#242424', fontWeight: 400, fontSize: '14px' }}>{booking.duration}</p>
                         </div>
                       </div>
@@ -414,7 +417,7 @@ const BookingsSection = () => {
                             <Image src="/avtar.png" alt="Project Manager Avatar" width={40} height={40} />
                           </div>
                           <div className="min-w-0">
-                            <p className="text-xs" style={{ color: '#909090', fontWeight: 500 }}>Project Manager</p>
+                            <p className="text-xs" style={{ color: '#909090', fontWeight: 500 }}>{t('projectManager')}</p>
                             <p className="text-sm font-semibold" style={{ color: '#242424' }}>{booking.projectManager.name}</p>
                           </div>
                         </div>
@@ -423,7 +426,7 @@ const BookingsSection = () => {
                             <Image src="/avtar.png" alt="Developer Avatar" width={40} height={40} />
                           </div>
                           <div className="min-w-0">
-                            <p className="text-xs" style={{ color: '#909090', fontWeight: 500 }}>Developer</p>
+                            <p className="text-xs" style={{ color: '#909090', fontWeight: 500 }}>{t('developer')}</p>
                             <p className="text-sm font-semibold" style={{ color: '#242424' }}>{booking.developer.name}</p>
                           </div>
                         </div>
@@ -438,7 +441,7 @@ const BookingsSection = () => {
                         className="py-2 px-4 rounded-lg text-white hover:opacity-90 transition-opacity" 
                         style={{ backgroundColor: '#45A735', width: '30%', fontWeight: 600, fontSize: '12px' }}
                       >
-                        Re-Book
+                        {t('reBook')}
                       </button>
                     </div>
                   ))
@@ -451,7 +454,7 @@ const BookingsSection = () => {
                         <path d="M9 14h6M9 19h6" stroke="#9CA3AF" strokeWidth="2" />
                       </svg>
                     </div>
-                    <p className="text-gray-500 font-opensauce text-center">No completed bookings</p>
+                    <p className="text-gray-500 font-opensauce text-center">{t('noCompleted')}</p>
                   </div>
                 )}
               </div>

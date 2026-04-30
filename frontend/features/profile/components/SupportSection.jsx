@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { useDispatch, useSelector } from 'react-redux';
+import { useTranslations } from 'next-intl';
 import { fetchAllTickets } from '@/lib/redux/slices/ticketSlice';
 import { fetchOngoingBookings } from '@/lib/redux/slices/bookingSlice/bookingSlice';
 import { getServiceIcon } from '@/lib/utils/serviceIcon';
@@ -12,6 +13,7 @@ import axiosInstance from '@/lib/axios/axiosInstance';
 const SupportSection = () => {
   const dispatch = useDispatch();
   const router = useRouter();
+  const t = useTranslations('supportSection');
   const { tickets, isLoading } = useSelector((state) => state.tickets);
   const { ongoingBookings: bookingsData } = useSelector((state) => state.booking);
   const [activeTab, setActiveTab] = useState('ongoing');
@@ -111,7 +113,7 @@ const SupportSection = () => {
       if (error.response?.status === 400 && error.response?.data?.message) {
         setErrorMessage(error.response.data.message);
       } else {
-        setErrorMessage('Failed to create ticket. Please try again.');
+        setErrorMessage(t('errorCreate'));
       }
     } finally {
       setIsSubmitting(false);
@@ -139,14 +141,14 @@ const SupportSection = () => {
       {/* Header with Create Button */}
       <div className="mb-6 lg:mb-8 flex items-center justify-between">
         <h1 className="font-[700] text-[18px] sm:text-[20px] lg:text-[24px]" style={{ color: '#202224' }}>
-          Tickets
+          {t('title')}
         </h1>
         <button
           onClick={() => setIsModalOpen(true)}
           className="px-4 py-2 lg:px-6 lg:py-3 rounded-lg text-white text-sm lg:text-base font-semibold transition-colors hover:opacity-90"
           style={{ backgroundColor: '#45A735' }}
         >
-          Create New Ticket
+          {t('createNew')}
         </button>
       </div>
 
@@ -161,7 +163,7 @@ const SupportSection = () => {
           }`}
           style={{ fontWeight: 700 }}
         >
-          On Going Tickets
+          {t('ongoingTab')}
         </button>
         <button
           onClick={() => setActiveTab('resolved')}
@@ -172,7 +174,7 @@ const SupportSection = () => {
           }`}
           style={{ fontWeight: 700 }}
         >
-          Resolve Tickets
+          {t('resolvedTab')}
         </button>
       </div>
 
@@ -182,7 +184,7 @@ const SupportSection = () => {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-5 lg:gap-6 pr-2 sm:pr-3 lg:pr-4">
             {isLoading ? (
               <div className="col-span-1 lg:col-span-2 flex items-center justify-center py-20">
-                <p className="text-gray-500 font-opensauce">Loading tickets...</p>
+                <p className="text-gray-500 font-opensauce">{t('loading')}</p>
               </div>
             ) : ongoingTickets.length > 0 ? (
               ongoingTickets.map((ticket) => (
@@ -194,7 +196,7 @@ const SupportSection = () => {
                   <div className="grid grid-cols-2 gap-2 sm:gap-3 mb-3 sm:mb-4">
                     <div>
                       <p className="text-[10px] sm:text-xs font-opensauce mb-1" style={{ color: '#909090', fontWeight: 500 }}>
-                        Support Ticket ID
+                        {t('supportTicketId')}
                       </p>
                       <p className="break-words text-xs sm:text-sm" style={{ color: '#242424', fontWeight: 400 }}>
                         {ticket.ticketId}
@@ -202,7 +204,7 @@ const SupportSection = () => {
                     </div>
                     <div>
                       <p className="text-[10px] sm:text-xs font-opensauce mb-1" style={{ color: '#909090', fontWeight: 500 }}>
-                        Booking ID
+                        {t('bookingId')}
                       </p>
                       <p className="break-words text-xs sm:text-sm" style={{ color: '#242424', fontWeight: 400 }}>
                         {ticket.bookingDetails?.bookingId || 'N/A'}
@@ -210,7 +212,7 @@ const SupportSection = () => {
                     </div>
                     <div>
                       <p className="text-[10px] sm:text-xs font-opensauce mb-1" style={{ color: '#909090', fontWeight: 500 }}>
-                        Date
+                        {t('date')}
                       </p>
                       <p className="break-words text-xs sm:text-sm" style={{ color: '#242424', fontWeight: 400 }}>
                         {formatDate(ticket.createdAt)}
@@ -218,7 +220,7 @@ const SupportSection = () => {
                     </div>
                     <div>
                       <p className="text-[10px] sm:text-xs font-opensauce mb-1" style={{ color: '#909090', fontWeight: 500 }}>
-                        Status
+                        {t('status')}
                       </p>
                       <span
                         className="inline-block px-2 sm:px-3 py-0.5 sm:py-1 text-[10px] sm:text-xs font-semibold"
@@ -233,7 +235,7 @@ const SupportSection = () => {
                   {ticket.comment && (
                     <div className="mb-4 sm:mb-5 lg:mb-6">
                       <p className="text-[10px] sm:text-xs font-opensauce mb-1" style={{ color: '#909090', fontWeight: 500 }}>
-                        Comment
+                        {t('comment')}
                       </p>
                       <p className="text-xs sm:text-sm" style={{ color: '#242424', fontWeight: 400 }}>
                         {ticket.comment}
@@ -250,7 +252,7 @@ const SupportSection = () => {
                     className="py-1.5 sm:py-2 px-4 sm:px-6 rounded-lg text-white text-xs sm:text-sm font-semibold transition-colors w-full sm:w-auto hover:opacity-90"
                     style={{ backgroundColor: '#45A735', fontWeight: 600 }}
                   >
-                    View Details
+                    {t('viewDetails')}
                   </button>
                 </div>
               ))
@@ -263,7 +265,7 @@ const SupportSection = () => {
                     <path d="M9 14h6M9 19h6" stroke="#9CA3AF" strokeWidth="2" />
                   </svg>
                 </div>
-                <p className="text-gray-500 font-opensauce text-center">No ongoing tickets</p>
+                <p className="text-gray-500 font-opensauce text-center">{t('noOngoing')}</p>
               </div>
             )}
           </div>
@@ -276,7 +278,7 @@ const SupportSection = () => {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-5 lg:gap-6 pr-2 sm:pr-3 lg:pr-4">
             {isLoading ? (
               <div className="col-span-1 lg:col-span-2 flex items-center justify-center py-20">
-                <p className="text-gray-500 font-opensauce">Loading tickets...</p>
+                <p className="text-gray-500 font-opensauce">{t('loading')}</p>
               </div>
             ) : resolvedTickets.length > 0 ? (
               resolvedTickets.map((ticket) => (
@@ -288,7 +290,7 @@ const SupportSection = () => {
                   <div className="grid grid-cols-2 gap-2 sm:gap-3 mb-3 sm:mb-4">
                     <div>
                       <p className="text-[10px] sm:text-xs font-opensauce mb-1" style={{ color: '#909090', fontWeight: 500 }}>
-                        Support Ticket ID
+                        {t('supportTicketId')}
                       </p>
                       <p className="break-words text-xs sm:text-sm" style={{ color: '#242424', fontWeight: 400 }}>
                         {ticket.ticketId}
@@ -296,7 +298,7 @@ const SupportSection = () => {
                     </div>
                     <div>
                       <p className="text-[10px] sm:text-xs font-opensauce mb-1" style={{ color: '#909090', fontWeight: 500 }}>
-                        Booking ID
+                        {t('bookingId')}
                       </p>
                       <p className="break-words text-xs sm:text-sm" style={{ color: '#242424', fontWeight: 400 }}>
                         {ticket.bookingDetails?.bookingId || 'N/A'}
@@ -304,7 +306,7 @@ const SupportSection = () => {
                     </div>
                     <div>
                       <p className="text-[10px] sm:text-xs font-opensauce mb-1" style={{ color: '#909090', fontWeight: 500 }}>
-                        Date
+                        {t('date')}
                       </p>
                       <p className="break-words text-xs sm:text-sm" style={{ color: '#242424', fontWeight: 400 }}>
                         {formatDate(ticket.createdAt)}
@@ -312,7 +314,7 @@ const SupportSection = () => {
                     </div>
                     <div>
                       <p className="text-[10px] sm:text-xs font-opensauce mb-1" style={{ color: '#909090', fontWeight: 500 }}>
-                        Status
+                        {t('status')}
                       </p>
                       <span
                         className="inline-block px-2 sm:px-3 py-0.5 sm:py-1 rounded-full text-[10px] sm:text-xs font-semibold"
@@ -327,7 +329,7 @@ const SupportSection = () => {
                   {ticket.comment && (
                     <div className="mb-4 sm:mb-5 lg:mb-6">
                       <p className="text-[10px] sm:text-xs font-opensauce mb-1" style={{ color: '#909090', fontWeight: 500 }}>
-                        Comment
+                        {t('comment')}
                       </p>
                       <p className="text-xs sm:text-sm" style={{ color: '#242424', fontWeight: 400 }}>
                         {ticket.comment}
@@ -344,7 +346,7 @@ const SupportSection = () => {
                     className="py-1.5 sm:py-2 px-4 sm:px-6 rounded-lg text-white text-xs sm:text-sm font-semibold transition-colors w-full sm:w-auto hover:opacity-90"
                     style={{ backgroundColor: '#45A735', fontWeight: 600 }}
                   >
-                    View Details
+                    {t('viewDetails')}
                   </button>
                 </div>
               ))
@@ -357,7 +359,7 @@ const SupportSection = () => {
                     <path d="M9 14h6M9 19h6" stroke="#9CA3AF" strokeWidth="2" />
                   </svg>
                 </div>
-                <p className="text-gray-500 font-opensauce text-center">No resolved tickets</p>
+                <p className="text-gray-500 font-opensauce text-center">{t('noResolved')}</p>
               </div>
             )}
           </div>
@@ -408,23 +410,23 @@ const SupportSection = () => {
 
                 {/* Success Message */}
                 <div className="text-center px-4 pb-6">
-                  <h2 
+                  <h2
                     className="text-[20px] md:text-[22px] lg:text-[24px] font-semibold mb-4"
                     style={{
                       color: "#242424",
                       fontWeight: "600",
                     }}
                   >
-                    Thanks For sharing Your Feedback
+                    {t('thanksFeedback')}
                   </h2>
-                  <p 
+                  <p
                     className="text-[14px] md:text-[15px] lg:text-[16px]"
                     style={{
                       color: "#636363",
                       fontWeight: "400",
                     }}
                   >
-                    Our teammate will connect with you within 10 minutes.
+                    {t('teamConnectSoon')}
                   </p>
                 </div>
               </>
@@ -434,7 +436,7 @@ const SupportSection = () => {
                 {/* Header with Close Button */}
                 <div className="flex items-center justify-between mb-4 sm:mb-6">
                   <h2 className="font-[700] text-base sm:text-lg lg:text-2xl" style={{ color: '#202224' }}>
-                    Report Issue
+                    {t('reportIssue')}
                   </h2>
                   <button
                     onClick={handleCloseModal}
@@ -448,11 +450,11 @@ const SupportSection = () => {
 
                 {/* Note Field */}
                 <div className="mb-4 sm:mb-6">
-                  <label className="block text-xs sm:text-sm font-semibold text-gray-900 mb-2">Note*</label>
+                  <label className="block text-xs sm:text-sm font-semibold text-gray-900 mb-2">{t('noteLabel')}</label>
                   <textarea
                     value={noteText}
                     onChange={handleNoteChange}
-                    placeholder="Please write your note...."
+                    placeholder={t('notePlaceholder')}
                     className="w-full p-2.5 sm:p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#45A735] resize-none text-xs sm:text-sm"
                     rows={4}
                     style={{ color: '#242424' }}
@@ -461,7 +463,7 @@ const SupportSection = () => {
 
                 {/* Ongoing Bookings Section */}
                 <div className="mb-6 sm:mb-8">
-                  <h3 className="font-[600] text-sm sm:text-[16px] text-gray-900 mb-3 sm:mb-4">Ongoing Bookings</h3>
+                  <h3 className="font-[600] text-sm sm:text-[16px] text-gray-900 mb-3 sm:mb-4">{t('ongoingBookings')}</h3>
                   <div className="max-h-[120px] sm:max-h-[130px] overflow-y-auto space-y-3 sm:space-y-4 hide-scrollbar">
                     {modalBookings.length > 0 ? (
                       modalBookings.map((booking) => (
@@ -498,7 +500,7 @@ const SupportSection = () => {
                         </div>
                       ))
                     ) : (
-                      <p className="text-xs sm:text-sm text-gray-500 text-center py-4">No ongoing bookings available</p>
+                      <p className="text-xs sm:text-sm text-gray-500 text-center py-4">{t('noOngoingAvailable')}</p>
                     )}
                   </div>
                 </div>
@@ -538,7 +540,7 @@ const SupportSection = () => {
                     className="py-2.5 sm:py-3 px-6 sm:px-8 rounded-lg text-white text-sm sm:text-base font-semibold transition-colors hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0"
                     style={{ backgroundColor: '#45A735' }}
                   >
-                    {isSubmitting ? 'Submitting...' : 'Submit'}
+                    {isSubmitting ? t('submitting') : t('submit')}
                   </button>
                 </div>
               </>

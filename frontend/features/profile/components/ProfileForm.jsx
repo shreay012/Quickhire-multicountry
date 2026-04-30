@@ -3,6 +3,7 @@ import { showError, showSuccess } from '@/lib/utils/toast';
 
 import { useState, useEffect } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
+import { useTranslations } from 'next-intl';
 import { getProfile } from '../../../lib/redux/slices/authSlice/authSlice';
 import { updateUserProfile } from '../../../lib/redux/slices/userProfileSlice/userProfileSlice';
 
@@ -48,6 +49,7 @@ const FormSkeleton = () => (
 
 const ProfileForm = () => {
   const dispatch = useDispatch();
+  const t = useTranslations('profile');
   const { user, isLoading } = useSelector((state) => state.auth);
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -103,11 +105,11 @@ const ProfileForm = () => {
       if (result.type === 'userProfile/updateUserProfile/fulfilled') {
         setIsEditing(false);
       } else if (result.type === 'userProfile/updateUserProfile/rejected') {
-        showError(result.payload || 'Failed to update profile. Please try again.');
+        showError(result.payload || t('errorUpdate'));
       }
     } catch (error) {
       console.error('Error updating profile:', error);
-      showError('Failed to update profile. Please try again.');
+      showError(t('errorUpdate'));
     } finally {
       setIsSaving(false);
     }
@@ -122,7 +124,7 @@ const ProfileForm = () => {
     <div className={`w-full lg:flex-1`}>
       {/* Header - Outside card */}
       <div className="flex items-center justify-between mb-6 lg:mb-8">
-        <h1 className="font-[700] text-[18px] sm:text-[20px] lg:text-[24px]" style={{ color: '#202224' }}>Profile</h1>
+        <h1 className="font-[700] text-[18px] sm:text-[20px] lg:text-[24px]" style={{ color: '#202224' }}>{t('title')}</h1>
         {!isEditing && (
           <button
             onClick={() => setIsEditing(!isEditing)}
@@ -132,7 +134,7 @@ const ProfileForm = () => {
               <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
               <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
-            Edit
+            {t('edit')}
           </button>
         )}
       </div>
@@ -145,7 +147,7 @@ const ProfileForm = () => {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <div>
             <label className="block text-gray-700 text-sm font-medium mb-2">
-              First Name
+              {t('firstName')}
             </label>
             <input
               type="text"
@@ -159,7 +161,7 @@ const ProfileForm = () => {
 
           <div>
             <label className="block text-gray-700 text-sm font-medium mb-2">
-              Last Name
+              {t('lastName')}
             </label>
             <input
               type="text"
@@ -176,7 +178,7 @@ const ProfileForm = () => {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <div>
             <label className="block text-gray-700 text-sm font-medium mb-2">
-              Email ID
+              {t('emailId')}
             </label>
             <input
               type="email"
@@ -190,7 +192,7 @@ const ProfileForm = () => {
 
           <div>
             <label className="block text-gray-700 text-sm font-medium mb-2">
-              Phone Number
+              {t('phoneNumber')}
             </label>
             <input
               type="tel"
@@ -211,7 +213,7 @@ const ProfileForm = () => {
               onClick={() => setIsEditing(false)}
               className="px-6 border-2 border-gray-300 text-gray-700 font-semibold py-3 rounded-lg hover:bg-gray-50 transition-colors font-opensauce"
             >
-              Cancel
+              {t('cancel')}
             </button>
             <button
               type="button"
@@ -219,7 +221,7 @@ const ProfileForm = () => {
               disabled={isSaving}
               className="px-6 bg-[#45A735] text-white font-semibold py-3 rounded-lg hover:bg-[#3d9230] transition-colors font-opensauce disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {isSaving ? 'Saving...' : 'Save Changes'}
+              {isSaving ? t('saving') : t('saveChanges')}
             </button>
           </div>
         )}

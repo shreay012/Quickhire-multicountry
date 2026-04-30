@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import staffApi from '@/lib/axios/staffApi';
 import { PageHeader, Table, StatusBadge, Spinner, ErrorBox, Button } from '@/components/staff/ui';
 
@@ -9,6 +10,7 @@ const STATUSES = ['', 'open', 'in_progress', 'resolved', 'closed'];
 
 export default function AdminTicketsPage() {
   const router = useRouter();
+  const t = useTranslations('admin.tickets');
   const [items, setItems] = useState(null);
   const [error, setError] = useState(null);
   const [status, setStatus] = useState('');
@@ -34,8 +36,8 @@ export default function AdminTicketsPage() {
   return (
     <div>
       <PageHeader
-        title="Support Tickets"
-        subtitle="Customer support queue"
+        title={t('title')}
+        subtitle={t('subtitle')}
         action={
           <select value={status} onChange={(e) => setStatus(e.target.value)} className="px-3 py-2 border border-[#D6EBCF] bg-white rounded-lg text-sm">
             {STATUSES.map((s) => <option key={s} value={s}>{s || 'All statuses'}</option>)}
@@ -45,7 +47,7 @@ export default function AdminTicketsPage() {
       <div className="p-4 sm:p-8 space-y-4">
         <ErrorBox error={error} />
         {items === null && !error && <Spinner />}
-        {items !== null && <Table columns={cols} rows={items} empty="No tickets." />}
+        {items !== null && <Table columns={cols} rows={items} empty={t('noResults')} />}
       </div>
     </div>
   );

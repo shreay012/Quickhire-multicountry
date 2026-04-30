@@ -3,6 +3,7 @@ import { showError, showSuccess } from '@/lib/utils/toast';
 
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import staffApi from '@/lib/axios/staffApi';
 import { PageHeader, Table, StatusBadge, Spinner, ErrorBox, Button } from '@/components/staff/ui';
 
@@ -24,6 +25,7 @@ function liveWorked(row, tick) {
 }
 
 export default function PmBookingsPage() {
+  const t = useTranslations('pm.bookings');
   const router = useRouter();
   const [items, setItems] = useState(null);
   const [error, setError] = useState(null);
@@ -119,11 +121,11 @@ export default function PmBookingsPage() {
 
   return (
     <div>
-      <PageHeader title="My Bookings" subtitle="Bookings assigned to you — start, pause and complete the work" />
+      <PageHeader title={t('title')} subtitle={t('subtitle')} />
       <div className="p-4 sm:p-8 space-y-4">
         <ErrorBox error={error} />
         {items === null && !error && <Spinner />}
-        {items !== null && <Table columns={columns} rows={items} empty="No bookings assigned." />}
+        {items !== null && <Table columns={columns} rows={items} empty={t('noResults')} />}
       </div>
     </div>
   );

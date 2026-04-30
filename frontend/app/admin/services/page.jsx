@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, useRef } from 'react';
+import { useTranslations } from 'next-intl';
 import staffApi from '@/lib/axios/staffApi';
 import { PageHeader, Spinner, ErrorBox, Button, Table } from '@/components/staff/ui';
 
@@ -58,6 +59,7 @@ function TagInput({ value, onChange }) {
 }
 
 export default function AdminServicesPage() {
+  const t = useTranslations('admin.services');
   const [items, setItems] = useState(null);
   const [error, setError] = useState(null);
   const [edit, setEdit] = useState(null); // null | {} (new) | service obj
@@ -133,14 +135,14 @@ export default function AdminServicesPage() {
   return (
     <div>
       <PageHeader
-        title="Services"
-        subtitle="Service catalog management"
+        title={t('title')}
+        subtitle={t('subtitle')}
         action={<Button variant="primary" onClick={() => open(null)}>+ New Service</Button>}
       />
       <div className="p-4 sm:p-8 space-y-4">
         <ErrorBox error={error} />
         {items === null && !error && <Spinner />}
-        {items !== null && <Table columns={cols} rows={items} empty="No services yet — add the first." />}
+        {items !== null && <Table columns={cols} rows={items} empty={t('noResults')} />}
       </div>
 
       {edit && (

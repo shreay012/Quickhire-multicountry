@@ -1,10 +1,12 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useTranslations } from 'next-intl';
 import staffApi from '@/lib/axios/staffApi';
 import { PageHeader, StatCard, Spinner, ErrorBox } from '@/components/staff/ui';
 
 export default function AdminDashboard() {
+  const t = useTranslations('admin.dashboard');
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
 
@@ -16,17 +18,17 @@ export default function AdminDashboard() {
 
   return (
     <div>
-      <PageHeader title="Dashboard" subtitle="Overview of platform activity" />
+      <PageHeader title={t('title')} subtitle={t('subtitle')} />
       <div className="p-4 sm:p-8 space-y-6">
         <ErrorBox error={error} />
         {!data && !error && <Spinner />}
         {data && (
           <>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              <StatCard label="Total Users" value={data.totalUsers} color="green" />
-              <StatCard label="Total Bookings" value={data.totalBookings} color="green" />
-              <StatCard label="Revenue (paid)" value={`₹${(data.revenue?.total || 0).toLocaleString('en-IN')}`} hint={`${data.revenue?.count || 0} payments`} color="orange" />
-              <StatCard label="Active Bookings" value={(data.bookingsByStatus?.confirmed || 0) + (data.bookingsByStatus?.assigned_to_pm || 0) + (data.bookingsByStatus?.in_progress || 0)} color="green" />
+              <StatCard label={t('totalUsers')} value={data.totalUsers} color="green" />
+              <StatCard label={t('totalBookings')} value={data.totalBookings} color="green" />
+              <StatCard label={t('totalRevenue')} value={`₹${(data.revenue?.total || 0).toLocaleString('en-IN')}`} hint={`${data.revenue?.count || 0} payments`} color="orange" />
+              <StatCard label={t('activeBookings')} value={(data.bookingsByStatus?.confirmed || 0) + (data.bookingsByStatus?.assigned_to_pm || 0) + (data.bookingsByStatus?.in_progress || 0)} color="green" />
             </div>
             <div className="bg-white rounded-2xl border border-[#E5F1E2] p-5">
               <h3 className="text-sm font-open-sauce-bold text-[#26472B] mb-4">Bookings by status</h3>

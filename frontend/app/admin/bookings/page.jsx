@@ -3,6 +3,7 @@ import { showError, showSuccess } from '@/lib/utils/toast';
 
 import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import staffApi from '@/lib/axios/staffApi';
 import { PageHeader, Table, StatusBadge, Spinner, ErrorBox, Button } from '@/components/staff/ui';
 
@@ -10,6 +11,7 @@ const STATUSES = ['', 'pending', 'confirmed', 'assigned_to_pm', 'in_progress', '
 
 export default function AdminBookingsPage() {
   const router = useRouter();
+  const t = useTranslations('admin.bookings');
   const [items, setItems] = useState(null);
   const [error, setError] = useState(null);
   const [status, setStatus] = useState('');
@@ -87,8 +89,8 @@ export default function AdminBookingsPage() {
   return (
     <div>
       <PageHeader
-        title="Bookings"
-        subtitle="Review, confirm, and assign bookings to Project Managers"
+        title={t('title')}
+        subtitle={t('subtitle')}
         action={
           <select
             value={status}
@@ -102,7 +104,7 @@ export default function AdminBookingsPage() {
       <div className="p-4 sm:p-8 space-y-4">
         <ErrorBox error={error} />
         {items === null && !error && <Spinner />}
-        {items !== null && <Table columns={columns} rows={items} empty="No bookings match this filter." />}
+        {items !== null && <Table columns={columns} rows={items} empty={t('noResults')} />}
       </div>
 
       {showAssign && (

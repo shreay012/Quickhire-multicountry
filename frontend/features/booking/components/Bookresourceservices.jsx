@@ -3,9 +3,11 @@
 import { useEffect, useMemo, useState } from "react";
 import ServiceCardGridV3 from "./ServiceCardGridV3";
 import CardPrimary from "@/components/ui/CardPrimary";
+import { useTranslations } from "next-intl";
 import { useAppDispatch, useAppSelector } from "@/lib/redux/store/hooks";
 import { fetchAllServices } from "@/lib/redux/slices/discoverSlice/discoverserviceSlice";
 import { getServiceIcon } from "@/lib/utils/serviceIcon";
+import { useCmsTranslate } from "@/lib/i18n/useCmsTranslate";
 
 // Card background palette (cycles for visual variety)
 const BG_PALETTE = [
@@ -22,6 +24,9 @@ const BG_PALETTE = [
 const PAGE_SIZE = 8;
 
 const Bookresourceservices = () => {
+  const tBookExperts = useTranslations("bookExperts");
+  const tCommon = useTranslations("common");
+  const tCms = useCmsTranslate();
   const dispatch = useAppDispatch();
   const { allServices, isLoading } = useAppSelector((s) => s.services || {});
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -69,10 +74,10 @@ const Bookresourceservices = () => {
             <div className="w-[8px] h-[80px] bg-[#78EB54] rounded-none shrink-0" />
             <div className="flex flex-col gap-2">
               <h2 className="text-[40px] md:text-[48px] font-bold leading-tight text-[#404040] font-['Open_Sauce_One_Bold']">
-                Book Experts
+                {tBookExperts("title")}
               </h2>
               <p className="text-[18px] md:text-[22px] text-[#636363] font-['Open_Sauce_One_Regular']">
-                Fulfill tech resource requirement fast.
+                {tBookExperts("subtitle")}
               </p>
             </div>
           </div>
@@ -126,7 +131,7 @@ const Bookresourceservices = () => {
           <div className="text-center py-20 text-[#636363]">Loading services…</div>
         )}
         {!isLoading && services.length === 0 && (
-          <div className="text-center py-20 text-[#636363]">No services available</div>
+          <div className="text-center py-20 text-[#636363]">{tBookExperts("noServices")}</div>
         )}
 
         {/* Big Cards Grid V3 */}

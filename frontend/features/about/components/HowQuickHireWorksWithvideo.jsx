@@ -4,40 +4,20 @@ import { useState, useRef } from "react";
 import { Box, Typography, IconButton } from "@mui/material";
 import PlayArrowIcon from "@mui/icons-material/PlayArrow";
 import PauseIcon from "@mui/icons-material/Pause";
+import { useTranslations } from "next-intl";
 import { ButtonPrimaryhowitwork } from "@/components/ui";
 
-const steps = [
-  {
-    number: 1,
-    title: "Booking",
-    description: "Choose your resource and place a booking in minutes.",
-  },
-  {
-    number: 2,
-    title: "Kick-off Call",
-    description:
-      "Connect with onboarded and your project manager to align on scope and execution.",
-  },
-  {
-    number: 3,
-    title: "Work Starts",
-    description: "The expert begins work based on agreed plan.",
-  },
-  {
-    number: 4,
-    title: "Get updates",
-    description:
-      "Receive regular progress updates via chat or email from your project manager.",
-  },
-  {
-    number: 5,
-    title: "Extend or close",
-    description:
-      "Add more hours, continue with the same expert, or close project when done.",
-  },
-];
-
 export default function HowQuickHireWorks({ hideVideo }) {
+  const t = useTranslations("howVideo");
+  const tHow = useTranslations("homepage.howItWorks");
+  const tCommon = useTranslations("common");
+  const steps = [
+    { number: 1, title: tHow("step1Title"), description: tHow("step1Desc") },
+    { number: 2, title: tHow("step2Title"), description: tHow("step2Desc") },
+    { number: 3, title: tHow("step3Title"), description: tHow("step3Desc") },
+    { number: 4, title: tHow("step4Title"), description: tHow("step4Desc") },
+    { number: 5, title: tHow("step5Title"), description: tHow("step5Desc") },
+  ];
   const [isPlaying, setIsPlaying] = useState(true);
   const [isHovering, setIsHovering] = useState(false);
   const [isMuted, setIsMuted] = useState(true); // Start muted for autoplay
@@ -77,8 +57,8 @@ export default function HowQuickHireWorks({ hideVideo }) {
         {/* Header */}
         <div className="text-center mb-12 ">
           <h2 className="font-bold text-(--bg-primary) leading-[150%] tracking-[0px] capitalize text-2xl sm:text-3xl md:text-[44px]">
-            How QuickHire{" "}
-            <span style={{ color: "var(--quickhire-green)" }}>Works ?</span>
+            {t("title")}{" "}
+            <span style={{ color: "var(--quickhire-green)" }}>{t("titleHighlight")}</span>
           </h2>
           <p
             className="mt-4 text-center max-w-2xl mx-auto text-sm sm:text-base md:text-[20px]"
@@ -89,7 +69,7 @@ export default function HowQuickHireWorks({ hideVideo }) {
               color: "#F9EEDC",
             }}
           >
-            From discovering top talent to getting fast, quality delivery.
+            {t("line1")}
           </p>
           <p
             className=" text-center max-w-2xl mx-auto text-sm sm:text-base md:text-[20px]"
@@ -101,7 +81,7 @@ export default function HowQuickHireWorks({ hideVideo }) {
               color: "#F9EEDC",
             }}
           >
-            Your success journey starts with QuickHire.
+            {t("line2")}
           </p>
         </div>
 
@@ -149,7 +129,7 @@ export default function HowQuickHireWorks({ hideVideo }) {
                 >
                   <path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4L9.91 6.09 12 8.18V4z" />
                 </svg>
-                <span>Click to unmute</span>
+                <span>{tCommon("clickToUnmute")}</span>
               </div>
             )}
 

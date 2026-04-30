@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useDispatch, useSelector } from "react-redux";
+import { useTranslations } from "next-intl";
 import {
   sendOtp,
   verifyOtp,
@@ -18,6 +19,7 @@ import Image from "next/image";
 const LoginPage = () => {
   const router = useRouter();
   const dispatch = useDispatch();
+  const t = useTranslations("auth");
   const { isLoading, error, otpSent } = useSelector((state) => state.auth);
 
   const [isOtpStep, setIsOtpStep] = useState(false);
@@ -118,7 +120,7 @@ const LoginPage = () => {
       setErrorMessage(
         typeof error === "string"
           ? error
-          : error.message || "An error occurred",
+          : error.message || t("errorGeneric"),
       );
     }
   }, [error]);
@@ -244,7 +246,7 @@ const LoginPage = () => {
 
   const handleSendOtp = async (number) => {
     if (!number || number.length !== 10) {
-      setErrorMessage("Please enter a valid 10-digit mobile number");
+      setErrorMessage(t("errorMobileInvalid"));
       return;
     }
 
@@ -254,7 +256,7 @@ const LoginPage = () => {
 
       const result = await dispatch(sendOtp(number)).unwrap();
 
-      setSuccessMessage("OTP has been Sent Successfully");
+      setSuccessMessage(t("successOtpSent"));
 
       setTimeout(() => {
         setSuccessMessage(null);
@@ -263,14 +265,14 @@ const LoginPage = () => {
       setErrorMessage(
         typeof error === "string"
           ? error
-          : error.message || "Failed to send OTP. Please try again.",
+          : error.message || t("errorSendOtp"),
       );
     }
   };
 
   const handleResendOtp = async (number) => {
     if (!number || number.length !== 10) {
-      setErrorMessage("Please enter a valid 10-digit mobile number");
+      setErrorMessage(t("errorMobileInvalid"));
       return;
     }
 
@@ -283,7 +285,7 @@ const LoginPage = () => {
       setResendSeconds(120);
       await dispatch(sendOtp(number)).unwrap();
 
-      setSuccessMessage("OTP has been Sent Successfully");
+      setSuccessMessage(t("successOtpSent"));
       setTimeout(() => {
         setSuccessMessage(null);
       }, 3000);
@@ -291,7 +293,7 @@ const LoginPage = () => {
       setErrorMessage(
         typeof error === "string"
           ? error
-          : error.message || "Failed to resend OTP. Please try again.",
+          : error.message || t("errorResendOtp"),
       );
     }
   };
@@ -299,7 +301,7 @@ const LoginPage = () => {
   const handleLogin = async (otpOverride) => {
     const otp = otpOverride ?? otpValues.join("");
     if (otp.length !== 4) {
-      setErrorMessage("Please enter complete OTP");
+      setErrorMessage(t("errorOtpIncomplete"));
       return;
     }
 
@@ -312,7 +314,7 @@ const LoginPage = () => {
         verifyOtp({ mobileNumber, otp, fcmToken }),
       ).unwrap();
 
-      setSuccessMessage("OTP Verified");
+      setSuccessMessage(t("successOtpVerified"));
       setTimeout(() => setSuccessMessage(null), 2000);
 
       if (result.data?.token || result.token) {
@@ -354,7 +356,7 @@ const LoginPage = () => {
       setErrorMessage(
         typeof error === "string"
           ? error
-          : error.message || "Login failed. Please try again.",
+          : error.message || t("errorLogin"),
       );
       setIsOtpVerified(false);
       autoLoginOtpRef.current = "";
@@ -363,29 +365,29 @@ const LoginPage = () => {
 
   const handleSaveProfile = async () => {
     if (!fullName.trim()) {
-      setErrorMessage("Please enter your full name");
+      setErrorMessage(t("errorNameRequired"));
       return;
     }
     if (!email.trim()) {
-      setErrorMessage("Please enter your email address");
+      setErrorMessage(t("errorEmailRequired"));
       return;
     }
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
-      setErrorMessage("Please enter a valid email address");
+      setErrorMessage(t("errorEmailInvalid"));
       return;
     }
 
     if (!userData) {
-      setErrorMessage("User data not found. Please try logging in again.");
+      setErrorMessage(t("errorUserDataMissing"));
       return;
     }
 
     const userId = userData.id || userData._id || userData.userId;
 
     if (!userId) {
-      setErrorMessage("User ID not found. Please try logging in again.");
+      setErrorMessage(t("errorUserIdMissing"));
       return;
     }
 
@@ -427,7 +429,7 @@ const LoginPage = () => {
       setErrorMessage(
         typeof error === "string"
           ? error
-          : error.message || "Failed to save profile. Please try again.",
+          : error.message || t("errorSaveProfile"),
       );
     }
   };
@@ -639,7 +641,7 @@ const LoginPage = () => {
                   alignItems: "center",
                 }}
               >
-                Skip
+                {t("skip")}
                 <Image
                   src="/ArrowLeft.svg"
                   alt="arrow"
@@ -707,7 +709,7 @@ const LoginPage = () => {
                           textAlign: "center",
                         }}
                       >
-                        Welcome to QuickHire
+                        {t("welcomeQuickHireNew")}
                       </h2>
                     </div>
 
@@ -722,7 +724,7 @@ const LoginPage = () => {
                         textAlign: "center",
                       }}
                     >
-                      We want to know more about you
+                      {t("tellUsAboutYou")}
                     </p>
 
                     {/* Divider line */}
@@ -776,7 +778,7 @@ const LoginPage = () => {
                             color: "#1A1A1A",
                           }}
                         >
-                          Full Name <span style={{ color: "#DC3545" }}>*</span>
+                          {t("fullName")} <span style={{ color: "#DC3545" }}>*</span>
                         </span>
                       </div>
                       <div
@@ -794,7 +796,7 @@ const LoginPage = () => {
                           onChange={(e) => setFullName(e.target.value)}
                           onFocus={() => setIsFullNameFocused(true)}
                           onBlur={() => setIsFullNameFocused(false)}
-                          placeholder="Enter your full name"
+                          placeholder={t("enterFullName")}
                           className="w-full h-full bg-transparent outline-none"
                           style={{
                             fontSize: `${responsive.fontSize}px`,
@@ -820,7 +822,7 @@ const LoginPage = () => {
                             color: "#1A1A1A",
                           }}
                         >
-                          Email Address{" "}
+                          {t("emailAddress")}{" "}
                           <span style={{ color: "#DC3545" }}>*</span>
                         </span>
                       </div>
@@ -839,7 +841,7 @@ const LoginPage = () => {
                           onChange={(e) => setEmail(e.target.value)}
                           onFocus={() => setIsEmailFocused(true)}
                           onBlur={() => setIsEmailFocused(false)}
-                          placeholder="example@gmail.com"
+                          placeholder={t("emailPlaceholder")}
                           className="w-full h-full bg-transparent outline-none"
                           style={{
                             fontSize: `${responsive.fontSize}px`,
@@ -867,7 +869,7 @@ const LoginPage = () => {
                           textAlign: "center",
                         }}
                       >
-                        Welcome to Quick Hire
+                        {t("welcomeQuickHire")}
                       </h2>
                     </div>
 
@@ -882,7 +884,7 @@ const LoginPage = () => {
                         textAlign: "center",
                       }}
                     >
-                      Sign in to hire verified IT professionals instantly.
+                      {t("signInTagline")}
                     </p>
 
                     {/* Divider line */}
@@ -932,7 +934,7 @@ const LoginPage = () => {
                             color: "#1A1A1A",
                           }}
                         >
-                          Mobile Number{" "}
+                          {t("mobileNumber")}{" "}
                           <span style={{ color: "#DC3545" }}>*</span>
                         </span>
                       </div>
@@ -955,7 +957,7 @@ const LoginPage = () => {
                             onChange={(e) => handleMobileChange(e.target.value)}
                             onFocus={() => setIsMobileFocused(true)}
                             onBlur={() => setIsMobileFocused(false)}
-                            placeholder="Enter Mobile Number"
+                            placeholder={t("enterMobileNumber")}
                             className="w-full h-full bg-transparent outline-none"
                             style={{
                               fontSize: `${responsive.fontSize}px`,
@@ -1002,12 +1004,12 @@ const LoginPage = () => {
                             }}
                           >
                             {isOtpVerified
-                              ? "OTP Verified"
+                              ? t("verified")
                               : isLoading
-                                ? "Verifying"
+                                ? t("verifying")
                                 : isOtpStep
-                                  ? "OTP Sent"
-                                  : "Send OTP"}
+                                  ? t("otpSent")
+                                  : t("sendOtp")}
                           </button>
                         </div>
                       </div>
@@ -1024,7 +1026,7 @@ const LoginPage = () => {
                             color: "#1A1A1A",
                           }}
                         >
-                          OTP <span style={{ color: "#DC3545" }}>*</span>
+                          {t("otp")} <span style={{ color: "#DC3545" }}>*</span>
                         </span>
                       </div>
 
@@ -1120,7 +1122,7 @@ const LoginPage = () => {
                               fontFamily: "'OpenSauceOne', sans-serif",
                             }}
                           >
-                            Did not receive OTP yet?
+                            {t("didNotReceive")}
                           </span>
                           <div className="flex items-center">
                             <Image
@@ -1142,7 +1144,7 @@ const LoginPage = () => {
                                   cursor: "pointer",
                                 }}
                               >
-                                Resend
+                                {t("resend")}
                               </button>
                             ) : (
                               <div className="flex items-center">
@@ -1154,7 +1156,7 @@ const LoginPage = () => {
                                     fontFamily: "'OpenSauceOne', sans-serif",
                                   }}
                                 >
-                                  Resend{" "}
+                                  {t("resend")}{" "}
                                 </span>
 
                                 <span
@@ -1250,7 +1252,7 @@ const LoginPage = () => {
                         fontFamily: "'OpenSauceOne', sans-serif",
                       }}
                     >
-                      {isNewUserStep ? "Save and continue" : "Login"}
+                      {isNewUserStep ? t("saveAndContinue") : t("login")}
                     </span>
                   </button>
                 )}

@@ -233,10 +233,10 @@ const Header = () => {
                     {showUserMenu && (
                       <div className="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-2xl border border-gray-200 py-3 z-50">
                         {[
-                          { label: "My Profile", href: "/profile?section=profile" },
-                          { label: "Bookings", href: "/profile?section=bookings" },
-                          { label: "Payments", href: "/profile?section=payments" },
-                          { label: "Support & Help", href: "/profile?section=support" },
+                          { label: t("myProfile"), href: "/profile?section=profile" },
+                          { label: t("bookings"), href: "/profile?section=bookings" },
+                          { label: t("payments"), href: "/profile?section=payments" },
+                          { label: t("supportHelp"), href: "/profile?section=support" },
                         ].map((item) => (
                           <Link key={item.label} href={item.href} className="flex items-center justify-between px-5 py-3 text-gray-700 hover:bg-gray-50 transition-colors cursor-pointer" onClick={() => setShowUserMenu(false)}>
                             <span className="text-base font-medium">{item.label}</span>
@@ -245,7 +245,7 @@ const Header = () => {
                         ))}
                         <div className="border-t border-gray-200 my-2" />
                         <button className="flex items-center justify-between w-full px-5 py-3 text-gray-700 hover:bg-gray-50 transition-colors cursor-pointer" onClick={handleLogout}>
-                          <span className="text-base font-medium">Log out</span>
+                          <span className="text-base font-medium">{t("logOut")}</span>
                           <ChevronRight />
                         </button>
                       </div>
@@ -254,7 +254,7 @@ const Header = () => {
                 </div>
               ) : (
                 <Link href="/login" className={`inline-flex items-center justify-center border border-[#45A735] rounded-lg font-semibold font-opensauce text-[#45A735] bg-transparent transition-all duration-200 hover:bg-[#45A735] hover:text-white ${isTablet ? "px-4 py-2 text-sm" : "px-5 py-2.5 text-base"}`}>
-                  Sign In
+                  {t("signIn")}
                 </Link>
               )}
             </nav>
@@ -292,10 +292,10 @@ const Header = () => {
               {isAuthenticated ? (
                 <>
                   {[
-                    { label: "My Profile", href: "/profile?section=profile" },
-                    { label: "Bookings", href: "/profile?section=bookings" },
-                    { label: "Payments", href: "/profile?section=payments" },
-                    { label: "Support & Help", href: "/profile?section=support" },
+                    { label: t("myProfile"), href: "/profile?section=profile" },
+                    { label: t("bookings"), href: "/profile?section=bookings" },
+                    { label: t("payments"), href: "/profile?section=payments" },
+                    { label: t("supportHelp"), href: "/profile?section=support" },
                   ].map((item) => (
                     <Link key={item.label} href={item.href} className="flex items-center justify-between w-full px-6 py-4 text-gray-700 hover:bg-gray-50 transition-colors border-b border-gray-200" onClick={() => setIsMobileMenuOpen(false)}>
                       <span className="text-base font-medium">{item.label}</span>
@@ -303,13 +303,13 @@ const Header = () => {
                     </Link>
                   ))}
                   <button className="flex items-center justify-between w-full px-6 py-4 text-gray-700 hover:bg-gray-50 transition-colors" onClick={handleLogout}>
-                    <span className="text-base font-medium">Log out</span>
+                    <span className="text-base font-medium">{t("logOut")}</span>
                     <ChevronRight />
                   </button>
                 </>
               ) : (
                 <Link href="/login" className="inline-flex items-center justify-center px-5 py-3 mx-6 mt-6 border border-[#45A735] rounded-lg font-semibold font-opensauce text-base text-[#45A735] bg-transparent transition-all duration-200 hover:bg-[#45A735] hover:text-white active:scale-95" onClick={() => setIsMobileMenuOpen(false)}>
-                  Sign In
+                  {t("signIn")}
                 </Link>
               )}
             </nav>

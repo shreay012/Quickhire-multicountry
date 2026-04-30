@@ -5,9 +5,13 @@ import { Box, IconButton } from "@mui/material";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
 import Image from "next/image";
+import { useTranslations } from "next-intl";
 import { useCmsContent } from "@/lib/hooks/useCmsContent";
+import { useCmsTranslate } from "@/lib/i18n/useCmsTranslate";
 
 const ClientSection = () => {
+  const t = useTranslations("spotlights");
+  const tCms = useCmsTranslate();
   const [currentSlide, setCurrentSlide] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
   const [direction, setDirection] = useState("next");
@@ -106,14 +110,13 @@ const ClientSection = () => {
                   <span className="italic font-normal">Spotlights</span>
                 </h2> */}
                 <h2 className="text-center sm:text-left text-2xl sm:text-3xl md:text-4xl font-bold text-gray-900 mb-2 sm:mb-3 leading-tight">
-                  Quickhire Success <br />
+                  {t("titleLine1")} <br />
                   <span className="font-bold sm:font-normal text-[#45A735] sm:text-gray-900 sm:italic">
-                    Spotlights
+                    {t("titleHighlight")}
                   </span>
                 </h2>
                 <p className="text-center sm:text-left text-gray-600 text-xs sm:text-sm leading-relaxed">
-                  Get Inspired By Businesses Who Have Grown With QuickHire
-                  Experts.
+                  {t("subtitle")}
                 </p>
               </div>
 
@@ -290,12 +293,12 @@ const ClientSection = () => {
 
             {/* Description */}
             <p className="text-gray-800 text-xs sm:text-sm leading-relaxed mb-3 sm:mb-4 font-medium">
-              {testimonials[currentSlide].description}
+              {tCms(testimonials[currentSlide].description)}
             </p>
 
             {/* Role - if available */}
             <p className="text-gray-600 text-xs italic mt-auto text-right">
-              {testimonials[currentSlide].role}
+              {tCms(testimonials[currentSlide].role)}
             </p>
           </Box>
         </div>

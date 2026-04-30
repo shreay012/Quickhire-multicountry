@@ -3,10 +3,14 @@
 import ArrowOutwardIcon from "@mui/icons-material/ArrowOutward";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { getServiceIcon } from "@/lib/utils/serviceIcon";
+import { useCmsTranslate } from "@/lib/i18n/useCmsTranslate";
 
 const CardPrimary = ({ card }) => {
   const router = useRouter();
+  const tCommon = useTranslations("common");
+  const tCms = useCmsTranslate();
   // console.log("Card Data:", card);
 
   // Get first 5 technologies names separated by pipes.
@@ -20,6 +24,7 @@ const CardPrimary = ({ card }) => {
       .slice(0, 5)
       .map((tech) => (typeof tech === "string" ? tech : tech?.name))
       .filter(Boolean)
+      .map((name) => tCms(name))
       .join(" | ");
   };
 
@@ -110,7 +115,7 @@ const CardPrimary = ({ card }) => {
       </div>
       <div className="flex-grow">
         <h3 className="text-[12px] sm:text-[20px] font-bold leading-[100%] tracking-[0%] align-middle text-[#000000] md:group-hover:text-white transition-colors font-['Open_Sauce_One_Bold']">
-          {card?.name}
+          {tCms(card?.name)}
         </h3>
         <p className="mt-4 text-[11px] sm:text-[16px] font-medium leading-[170%] tracking-[0%] align-middle text-[#636363] md:group-hover:text-white/90 transition-colors font-['Open_Sauce_One_Medium'] line-clamp-2 sm:line-clamp-4">
           {getTechnologiesText()}
@@ -122,7 +127,7 @@ const CardPrimary = ({ card }) => {
           className="relative inline-flex items-center justify-center h-10 w-10 sm:h-12 sm:w-12 md:group-hover:w-auto md:group-hover:px-5 md:group-hover:gap-2 rounded-full bg-lime-600 text-white text-sm font-semibold md:group-hover:bg-white md:group-hover:text-lime-600 transition-all duration-500 ease-in-out shadow-md md:hover:shadow-lg overflow-hidden"
         >
           <span className="absolute left-5 opacity-0 md:group-hover:opacity-100 md:group-hover:relative md:group-hover:left-0 whitespace-nowrap transition-all duration-500 ease-in-out">
-            Hire Experts
+            {tCommon("hireExperts")}
           </span>
           <ArrowOutwardIcon
             sx={{ fontSize: { xs: 14, sm: 18 } }}

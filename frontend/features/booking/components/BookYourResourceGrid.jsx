@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import React from "react";
+import { useTranslations } from "next-intl";
 import CardPrimary from "@/components/ui/CardPrimary";
 
 import { useAppDispatch, useAppSelector } from "@/lib/redux/store/hooks";
@@ -260,6 +261,8 @@ import { fetchAllServices } from "@/lib/redux/slices/discoverSlice/discoverservi
 // ];
 
 const BookYourResourceGrid = () => {
+  const tBookExperts = useTranslations("bookExperts");
+  const tCommon = useTranslations("common");
   const [showAll, setShowAll] = React.useState(false);
 
   const dispatch = useAppDispatch();
@@ -285,10 +288,10 @@ const BookYourResourceGrid = () => {
             <div className="w-2 h-[50px] md:h-[90px] lg:h-[90px] bg-[#78EB54]"></div>
             <div className="flex flex-col gap-2">
               <h2 className="text-[28px] md:text-[48px] font-bold leading-tight text-[#404040] font-['Open_Sauce_One_Bold']">
-                Book Experts
+                {tBookExperts("title")}
               </h2>
               <p className="text-[16spx] md:text-[22px] text-[#636363] font-['Open_Sauce_One_Regular']">
-                Fulfill tech resource requirement fast.
+                {tBookExperts("subtitle")}
               </p>
             </div>
           </div>
@@ -297,7 +300,7 @@ const BookYourResourceGrid = () => {
         <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-10 mb-16">
           {isLoading ? (
             <p className="col-span-full text-center text-gray-600">
-              Loading services...
+              {tCommon("loadingServices")}
             </p>
           ) : displayedServices?.length > 0 ? (
             displayedServices.map((service) => (
@@ -305,7 +308,7 @@ const BookYourResourceGrid = () => {
             ))
           ) : (
             <p className="col-span-full text-center text-gray-600">
-              No services available
+              {tBookExperts("noServices")}
             </p>
           )}
         </div>

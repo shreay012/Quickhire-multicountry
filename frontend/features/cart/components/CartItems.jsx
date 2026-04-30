@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { useDispatch, useSelector } from 'react-redux';
+import { useTranslations } from 'next-intl';
 import {
   removeFromCart,
   updateQuantity,
@@ -12,6 +13,7 @@ import { usePrice } from '@/lib/hooks/usePrice';
 
 const CartItems = () => {
   const dispatch = useDispatch();
+  const t = useTranslations('cart');
   const { items: cartItems, subtotal, tax, total } = useSelector(selectCart);
   const { format: fmtMoney } = usePrice();
 
@@ -21,7 +23,7 @@ const CartItems = () => {
   return (
     <div className="min-h-screen bg-gray-50 py-8 px-4 sm:px-6 lg:px-20">
       <div className="max-w-7xl mx-auto">
-        <h1 className="text-3xl font-bold text-gray-900 mb-8">Shopping Cart</h1>
+        <h1 className="text-3xl font-bold text-gray-900 mb-8">{t('shoppingCart')}</h1>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Cart Items */}
@@ -59,7 +61,7 @@ const CartItems = () => {
                         type="button"
                         onClick={() => handleQty(itemId, (item.quantity || 1) - 1)}
                         className="px-2 py-1 border border-gray-300 rounded text-gray-700 hover:bg-gray-100"
-                        aria-label="Decrease quantity"
+                        aria-label={t('decreaseQty')}
                       >
                         −
                       </button>
@@ -70,7 +72,7 @@ const CartItems = () => {
                         type="button"
                         onClick={() => handleQty(itemId, (item.quantity || 1) + 1)}
                         className="px-2 py-1 border border-gray-300 rounded text-gray-700 hover:bg-gray-100"
-                        aria-label="Increase quantity"
+                        aria-label={t('increaseQty')}
                       >
                         +
                       </button>
@@ -84,7 +86,7 @@ const CartItems = () => {
                   <button
                     onClick={() => handleRemoveItem(itemId)}
                     className="text-red-500 hover:text-red-700 transition-colors"
-                    aria-label="Remove item"
+                    aria-label={t('removeItem')}
                   >
                     <svg
                       className="w-6 h-6"
@@ -108,19 +110,19 @@ const CartItems = () => {
           {/* Order Summary */}
           <div className="lg:col-span-1">
             <div className="bg-white rounded-lg shadow-sm p-6 sticky top-24">
-              <h2 className="text-xl font-bold text-gray-900 mb-6">Order Summary</h2>
+              <h2 className="text-xl font-bold text-gray-900 mb-6">{t('orderSummary')}</h2>
 
               <div className="space-y-3 mb-6">
                 <div className="flex justify-between text-gray-600">
-                  <span>Subtotal</span>
+                  <span>{t('subtotal')}</span>
                   <span>{fmtMoney(Number(subtotal))}</span>
                 </div>
                 <div className="flex justify-between text-gray-600">
-                  <span>Tax (18%)</span>
+                  <span>{t('tax', { rate: 18 })}</span>
                   <span>{fmtMoney(Number(tax))}</span>
                 </div>
                 <div className="border-t border-gray-200 pt-3 flex justify-between font-bold text-lg">
-                  <span>Total</span>
+                  <span>{t('total')}</span>
                   <span className="text-[#45A735]">{fmtMoney(Number(total))}</span>
                 </div>
               </div>
@@ -129,14 +131,14 @@ const CartItems = () => {
                 href="/checkout"
                 className="block w-full px-6 py-3 bg-[#45A735] text-white text-center rounded-lg font-semibold hover:bg-[#3d9230] transition-colors mb-3"
               >
-                Proceed to Checkout
+                {t('proceedCheckout')}
               </Link>
 
               <Link
                 href="/book-your-resource"
                 className="block w-full px-6 py-3 border-2 border-gray-300 text-gray-700 text-center rounded-lg font-semibold hover:bg-gray-50 transition-colors"
               >
-                Continue Shopping
+                {t('continueShopping')}
               </Link>
             </div>
           </div>

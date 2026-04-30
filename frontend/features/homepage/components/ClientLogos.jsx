@@ -166,8 +166,10 @@
 
 import Image from "next/image";
 import { Box, Container, Typography } from "@mui/material";
+import { useTranslations } from "next-intl";
 
 const ClientLogos = () => {
+  const t = useTranslations("clientLogos");
   const logos = [
     { name: "Quantiphi", src: "/images/client/quantiphi.svg" },
     { name: "NinjaCart", src: "/images/client/ninjacart.svg" },
@@ -210,7 +212,7 @@ const ClientLogos = () => {
             mb: { xs: 4, md: 6 },
           }}
         >
-          Trusted by 100+ Enterprises
+          {t("title")}
         </Typography>
       </Container>
 

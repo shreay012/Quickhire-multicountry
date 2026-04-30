@@ -21,11 +21,14 @@ import { paymentService } from "@/lib/services/paymentApi";
 import { bookingService } from "@/lib/services/bookingApi";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { fetchDashboardStats } from "@/lib/redux/slices/dashboardSlice";
 import { addToCart } from "@/lib/redux/slices/cartSlice/cartSlice";
 
 const SummaryStep = () => {
   const topRef = useRef(null);
+  const t = useTranslations("summaryStep");
+  const tPay = useTranslations("paymentStep");
   const { format: fmtMoney } = usePrice();
   const {
     gstNumber,
@@ -645,8 +648,8 @@ const SummaryStep = () => {
                     mb: 0.75,
                   }}
                 >
-                  Service{" "}
-                  {bookingData.services.length > 1 ? `#${index + 1}` : ""}
+                  {t('service')}
+                  {bookingData.services.length > 1 ? ` #${index + 1}` : ""}
                 </Typography>
                 <Typography
                   sx={{
@@ -688,7 +691,7 @@ const SummaryStep = () => {
                     mb: 0.75,
                   }}
                 >
-                  Technical skills
+                  {t('technicalSkills')}
                 </Typography>
                 <Typography
                   sx={{
@@ -745,7 +748,7 @@ const SummaryStep = () => {
                         color: "var(--text-primary)",
                       }}
                     >
-                      Hours & Total Cost
+                      {tPay('hoursTotalCost')}
                     </Typography>
                     <Tooltip
                       title="18% GST will be applied at checkout"
@@ -814,7 +817,7 @@ const SummaryStep = () => {
                         color: "var(--text-primary)",
                       }}
                     >
-                      Booking type
+                      {t('bookingType')}
                     </Typography>
                     <InfoOutlinedIcon
                       sx={{
@@ -898,7 +901,7 @@ const SummaryStep = () => {
                 color: "#1F2937",
               }}
             >
-              Total Hours (All Services)
+              {tPay('totalHoursAll')}
             </Typography>
             <Typography
               sx={{
@@ -930,7 +933,7 @@ const SummaryStep = () => {
               lineHeight: 1.3,
             }}
           >
-            Price Breakdown
+            {t('priceBreakdown')}
           </Typography>
 
           {/* Divider Line */}
@@ -959,7 +962,7 @@ const SummaryStep = () => {
                 color: "#6B7280",
               }}
             >
-              Subtotal
+              {t('subtotal')}
             </Typography>
             <Typography
               sx={{
@@ -1049,7 +1052,7 @@ const SummaryStep = () => {
                 color: "#1F2937",
               }}
             >
-              Total
+              {t('total')}
             </Typography>
             <Typography
               sx={{

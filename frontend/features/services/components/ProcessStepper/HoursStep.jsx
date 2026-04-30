@@ -23,6 +23,7 @@ import RadioButtonCheckedIcon from "@mui/icons-material/RadioButtonChecked";
 import RemoveIcon from "@mui/icons-material/Remove";
 import AddIcon from "@mui/icons-material/Add";
 import { useSearchParams, useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { fetchHoursAvailability } from "@/lib/redux/slices/availabilitySlice/availabilitySlice";
 import {
   updateJob,
@@ -36,6 +37,7 @@ const HoursStep = ({ selectedService: selectedServiceProp, serviceId } = {}) => 
   const dispatch = useDispatch();
   const searchParams = useSearchParams();
   const router = useRouter();
+  const t = useTranslations("hoursStep");
 
   const {
     setHoursBookingData,
@@ -873,7 +875,7 @@ const HoursStep = ({ selectedService: selectedServiceProp, serviceId } = {}) => 
     },
     {
       id: "plan-custom",
-      hours: selectedDays > 1 ? `${selectedDays} Days (${8 * selectedDays} Hours)` : "Custom Duration",
+      hours: selectedDays > 1 ? t('daysWithHours', { days: selectedDays, hours: 8 * selectedDays }) : t('customDuration'),
       price: fmtINR(planCustom.total),
       pricePerHour: `${fmtINR(hourlyRate)}/hour`,
       originalPrice: `${fmtINR(mrpRate)}/hour`,
@@ -913,7 +915,7 @@ const HoursStep = ({ selectedService: selectedServiceProp, serviceId } = {}) => 
           mb: { xs: 1.5, sm: 2 },
         }}
       >
-        How many hours do you need?
+        {t('title')}
       </Typography>
 
       {/* Subheading */}
@@ -925,7 +927,7 @@ const HoursStep = ({ selectedService: selectedServiceProp, serviceId } = {}) => 
           mb: { xs: 3, sm: 3.5, md: 3 },
         }}
       >
-        Choose a duration that fits your project needs
+        {t('subtitle')}
       </Typography>
 
       {/* Pricing Cards Grid */}
@@ -993,7 +995,7 @@ const HoursStep = ({ selectedService: selectedServiceProp, serviceId } = {}) => 
                   borderTopRightRadius: { xs: "12px", sm: "14px", md: "16px" },
                 }}
               >
-                Populars
+                {t('popular')}
               </Box>
             )}
 
@@ -1271,10 +1273,10 @@ const HoursStep = ({ selectedService: selectedServiceProp, serviceId } = {}) => 
                 color: "var(--text-primary)",
               }}
             >
-              When Should The Resource Assigned?
+              {t('whenAssigned')}
             </Typography>
             <Tooltip
-              title="All booking times and expert availability follow IST for smooth coordination"
+              title={t('assignmentTooltip')}
               arrow
               placement="bottom"
               componentsProps={{
@@ -1381,7 +1383,7 @@ const HoursStep = ({ selectedService: selectedServiceProp, serviceId } = {}) => 
                   >
                     <Image
                       src="/images/book-services/Instant-Badge.svg"
-                      alt="Instant Badge"
+                      alt={t('instantBadge')}
                       width={67}
                       height={30}
                       priority
@@ -1417,7 +1419,7 @@ const HoursStep = ({ selectedService: selectedServiceProp, serviceId } = {}) => 
                           color: "#0A0A25",
                         }}
                       >
-                        In 10 min
+                        {t('in10Min')}
                       </Typography>
                     </Box>
                     <Typography
@@ -1428,8 +1430,8 @@ const HoursStep = ({ selectedService: selectedServiceProp, serviceId } = {}) => 
                       }}
                     >
                       {instantAvailable
-                        ? "Get started right away"
-                        : "Insufficient time remaining today"}
+                        ? t('getStartedRightAway')
+                        : t('insufficientTime')}
                     </Typography>
                   </Box>
                 </CardContent>
@@ -1489,7 +1491,7 @@ const HoursStep = ({ selectedService: selectedServiceProp, serviceId } = {}) => 
                           color: "#1F2937",
                         }}
                       >
-                        Schedule for Later
+                        {t('scheduleForLater')}
                       </Typography>
                       {/* Info Badge - Show for custom duration */}
                       {selectedPlan === "plan-custom" &&
@@ -1674,7 +1676,7 @@ const HoursStep = ({ selectedService: selectedServiceProp, serviceId } = {}) => 
                                     lineHeight: 1,
                                   }}
                                 >
-                                  {dateObj.isToday ? "Today" : dateObj.dayLabel}
+                                  {dateObj.isToday ? t('today') : dateObj.dayLabel}
                                 </Typography>
                                 <Typography
                                   sx={{
@@ -1745,7 +1747,7 @@ const HoursStep = ({ selectedService: selectedServiceProp, serviceId } = {}) => 
                             flexShrink: 0,
                           }}
                         >
-                          Select Time
+                          {t('selectTime')}
                         </Typography>
 
                         {/* Time Slots - Responsive Layout */}
@@ -1874,7 +1876,7 @@ const HoursStep = ({ selectedService: selectedServiceProp, serviceId } = {}) => 
               transition: "all 0.3s ease",
             }}
           >
-            Back
+            {t('back')}
           </Button>
         )}
 
@@ -2290,7 +2292,7 @@ const HoursStep = ({ selectedService: selectedServiceProp, serviceId } = {}) => 
             },
           }}
         >
-          {isPricingLoading ? "Loading..." : "Continue"}
+          {isPricingLoading ? t('loading') : t('continue')}
         </Button>
       </Box>
     </Box>

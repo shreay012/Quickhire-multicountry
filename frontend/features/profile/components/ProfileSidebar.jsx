@@ -3,11 +3,13 @@
 import Image from 'next/image';
 import { useRef, useState, useEffect } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
+import { useTranslations } from 'next-intl';
 import { updateUserProfile } from '@/lib/redux/slices/userProfileSlice/userProfileSlice';
 import { getProfile } from '@/lib/redux/slices/authSlice/authSlice';
 
 const ProfileSidebar = ({ activeSection, onSectionChange }) => {
   const { user } = useSelector((state) => state.auth);
+  const t = useTranslations('profile');
   const fileInputRef = useRef(null);
   const [isUploadingImage, setIsUploadingImage] = useState(false);
   const [profileImageUrl, setProfileImageUrl] = useState(null);
@@ -90,10 +92,10 @@ const ProfileSidebar = ({ activeSection, onSectionChange }) => {
   };
 
   const menuItems = [
-    { id: 'profile', label: 'Profile', icon: '/UserCircle.svg' },
-    { id: 'bookings', label: 'Bookings', icon: '/bookingp.svg' },
-    { id: 'payments', label: 'Payments', icon: '/paymentp.svg' },
-    { id: 'support', label: 'Support/Tickets', icon: '/supportp.svg' },
+    { id: 'profile', label: t('title'), icon: '/UserCircle.svg' },
+    { id: 'bookings', label: t('bookings'), icon: '/bookingp.svg' },
+    { id: 'payments', label: t('payments'), icon: '/paymentp.svg' },
+    { id: 'support', label: t('supportTickets'), icon: '/supportp.svg' },
   ];
 
   return (
@@ -127,7 +129,7 @@ const ProfileSidebar = ({ activeSection, onSectionChange }) => {
             accept="image/*"
             onChange={handleImageUpload}
             className="hidden"
-            aria-label="Upload profile image"
+            aria-label={t('uploadProfileImage')}
           />
           <button
             onClick={handleAddImageClick}
@@ -136,7 +138,7 @@ const ProfileSidebar = ({ activeSection, onSectionChange }) => {
           >
             <Image src="/PencilSimple.svg" alt="Add" width={24} height={24} loading="lazy" />
             <span className="text-[#45A735] font-[500] text-[14px]">
-              {isUploadingImage ? 'Uploading...' : profileImageUrl ? 'Edit Image' : 'Add Image'}
+              {isUploadingImage ? t('uploading') : profileImageUrl ? t('editImage') : t('addImage')}
             </span>
           </button>
         </div>
@@ -145,7 +147,7 @@ const ProfileSidebar = ({ activeSection, onSectionChange }) => {
         <div className="grid grid-cols-2 gap-4 mb-6">
           {/* On-Going Booking */}
           <div className="border border-gray-300 bg-white rounded-xl p-4 text-left">
-            <p className="font-[600] text-[12px] mb-2" style={{ color: '#000000' }}>On - Going Booking</p>
+            <p className="font-[600] text-[12px] mb-2" style={{ color: '#000000' }}>{t('ongoingBooking')}</p>
             <div className="flex items-center justify-between">
               <span className="text-2xl font-bold text-gray-900">{user?.ongoingJobs || 0}</span>
               <div className="w-8 h-8 bg-[#45A735] rounded-lg flex items-center justify-center">
@@ -156,7 +158,7 @@ const ProfileSidebar = ({ activeSection, onSectionChange }) => {
 
           {/* Completed Bookings */}
           <div className="border border-gray-300 bg-white rounded-xl p-4 text-left">
-            <p className="font-[600] text-[12px] mb-2" style={{ color: '#000000' }}>Completed Bookings</p>
+            <p className="font-[600] text-[12px] mb-2" style={{ color: '#000000' }}>{t('completedBookings')}</p>
             <div className="flex items-center justify-between">
               <span className="text-2xl font-bold text-gray-900">{user?.completedJobs || 0}</span>
               <div className="w-8 h-8 bg-[#45A735] rounded-lg flex items-center justify-center">
@@ -224,7 +226,7 @@ const ProfileSidebar = ({ activeSection, onSectionChange }) => {
 
          
           <div className="border border-gray-300 bg-white rounded-xl p-4 text-left">
-            <p className="font-[600] text-[12px] mb-2" style={{ color: '#000000' }}>Completed Bookings</p>
+            <p className="font-[600] text-[12px] mb-2" style={{ color: '#000000' }}>{t('completedBookings')}</p>
             <div className="flex items-center justify-between">
               <span className="text-2xl font-bold text-gray-900">{user?.completedJobs || 0}</span>
               <div className="w-8 h-8 bg-[#45A735] rounded-lg flex items-center justify-center">
@@ -282,7 +284,7 @@ const ProfileSidebar = ({ activeSection, onSectionChange }) => {
           >
             <Image src="/PencilSimple.svg" alt="Add" width={16} height={16} loading="lazy" />
             <span className="text-[#45A735] font-[500] text-[14px]">
-              {isUploadingImage ? 'Uploading...' : profileImageUrl ? 'Edit Image' : 'Add Image'}
+              {isUploadingImage ? t('uploading') : profileImageUrl ? t('editImage') : t('addImage')}
             </span>
           </button>
         </div>
@@ -291,7 +293,7 @@ const ProfileSidebar = ({ activeSection, onSectionChange }) => {
         <div className="grid grid-cols-2 gap-4 mb-6">
           {/* On-Going Booking */}
           <div className="border border-gray-300 bg-white rounded-xl p-4 text-left">
-            <p className="font-[600] text-[12px] mb-2" style={{ color: '#000000' }}>On - Going Booking</p>
+            <p className="font-[600] text-[12px] mb-2" style={{ color: '#000000' }}>{t('ongoingBooking')}</p>
             <div className="flex items-center justify-between">
               <span className="text-2xl font-bold text-gray-900">{user?.ongoingJobs || 0}</span>
               <div className="w-8 h-8 bg-[#45A735] rounded-lg flex items-center justify-center">
@@ -302,7 +304,7 @@ const ProfileSidebar = ({ activeSection, onSectionChange }) => {
 
           {/* Completed Bookings */}
           <div className="border border-gray-300 bg-white rounded-xl p-4 text-left">
-            <p className="font-[600] text-[12px] mb-2" style={{ color: '#000000' }}>Completed Bookings</p>
+            <p className="font-[600] text-[12px] mb-2" style={{ color: '#000000' }}>{t('completedBookings')}</p>
             <div className="flex items-center justify-between">
               <span className="text-2xl font-bold text-gray-900">{user?.completedJobs || 0}</span>
               <div className="w-8 h-8 bg-[#45A735] rounded-lg flex items-center justify-center">

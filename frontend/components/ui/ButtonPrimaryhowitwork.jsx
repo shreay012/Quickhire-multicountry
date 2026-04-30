@@ -2,14 +2,17 @@
 
 import { Button } from "@mui/material";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 
 const ButtonPrimaryhowitwork = ({
-  text = "Hire in 10 Minutes",
+  text,
   bgColor = "#3FA12B",
   hoverBgColor = "#000000",
   shadowColor = " 0px 18px 38px rgba(63, 143, 50, 0.9)",
   href = "/book-your-resource",
 }) => {
+  const t = useTranslations("common");
+  const label = text ?? t("hireIn10Minutes");
   return (
     <>
       <Link href={href} style={{ textDecoration: "none" }}>
@@ -61,7 +64,7 @@ const ButtonPrimaryhowitwork = ({
             },
           }}
         >
-          <span style={{ position: "relative", zIndex: 1 }}>{text}</span>
+          <span style={{ position: "relative", zIndex: 1 }}>{label}</span>
         </Button>
       </Link>
     </>

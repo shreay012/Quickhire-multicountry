@@ -2,9 +2,11 @@
 
 import { Button } from "@mui/material";
 import Image from "next/image";
+import { useTranslations } from "next-intl";
 import { useCmsContent } from "@/lib/hooks/useCmsContent";
 
 export default function TechStack() {
+  const t = useTranslations("techStack");
   const { items: technologies } = useCmsContent("technologies", []);
   const duplicatedTechnologies = [...technologies, ...technologies];
 
@@ -17,12 +19,11 @@ export default function TechStack() {
         {/* Header */}
         <div className="text-center mb-8 sm:mb-12">
           <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold text-gray-800 mb-3 sm:mb-4">
-            Popular Technologies
+            {t("title")}
           </h2>
 
           <p className="text-gray-600 text-sm sm:text-base max-w-3xl mx-auto px-4">
-            With 400+ Ai-Powered Professionals, We Support Every Popular
-            Technology And Software Ecosystem.
+            {t("subtitle")}
           </p>
         </div>
 

@@ -283,7 +283,7 @@ const Footer = () => {
                 color: "var(--quickhire-green)",
               }}
             >
-              Follow Us
+              {t("followUs")}
             </Typography>
             <Box
               sx={{

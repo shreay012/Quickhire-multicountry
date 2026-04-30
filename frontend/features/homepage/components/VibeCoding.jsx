@@ -3,8 +3,10 @@
 import Image from "next/image";
 import { useState } from "react";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 
 const VibeCoding = () => {
+  const t = useTranslations("vibeCoding");
   const [isHovered, setIsHovered] = useState(false);
 
   return (
@@ -20,7 +22,7 @@ const VibeCoding = () => {
                 fontSize: "clamp(28px, 6vw, 58px)",
               }}
             >
-              Not sure what
+              {t("titleLine1")}
             </h2>
             <h2
               style={{
@@ -30,7 +32,7 @@ const VibeCoding = () => {
               }}
               className="mb-1 sm:mb-4"
             >
-              you need?
+              {t("titleHighlight")}
             </h2>
             <p
               className="mb-6 sm:mb-8 max-w-md mx-auto lg:mx-0"
@@ -40,8 +42,7 @@ const VibeCoding = () => {
                 fontSize: "clamp(14px, 3vw, 23px)",
               }}
             >
-              Tell us what you're trying to build or fix, and we'll match you
-              with the right expert.
+              {t("subtitle")}
             </p>
 
             <Link href="/book-your-resource" style={{ textDecoration: "none" }}>
@@ -68,7 +69,7 @@ const VibeCoding = () => {
                   e.currentTarget.style.boxShadow = "";
                 }}
               >
-                Find Right Expert
+                {t("cta")}
               </button>
             </Link>
           </div>

@@ -3,10 +3,12 @@
 import Image from "next/image";
 import { useCmsContent } from "@/lib/hooks/useCmsContent";
 import { useTranslations } from "next-intl";
+import { useCmsTranslate } from "@/lib/i18n/useCmsTranslate";
 
 function WhyQuickSection() {
   const { items } = useCmsContent("features", []);
   const t = useTranslations("homepage.whyQuick");
+  const tCms = useCmsTranslate();
   return (
     <section className="w-full bg-white py-12 sm:py-16">
       <div className="mx-auto w-full max-w-7xl px-4 sm:px-6">
@@ -63,13 +65,13 @@ function WhyQuickSection() {
                 </div>
                 <div className="flex-1">
                   <h3 className="text-[14px] text-base sm:text-lg font-semibold text-slate-700">
-                    {item.title}
+                    {tCms(item.title)}
                   </h3>
                   <p
                     className="mt-1.5 sm:mt-2 text-xs sm:text-sm md:text-base"
                     style={{ color: "#909090" }}
                   >
-                    {item.description}
+                    {tCms(item.description)}
                   </p>
                   <div className="mt-3 sm:mt-4 flex items-center gap-3">
                     <span className="h-2 w-2 rounded-full bg-lime-600" />

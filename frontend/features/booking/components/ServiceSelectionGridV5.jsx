@@ -3,10 +3,12 @@
 import { useState, useEffect, useRef } from "react";
 import ServiceCardGridV3 from "./ServiceCardGridV3";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 
 import { useAppDispatch, useAppSelector } from "@/lib/redux/store/hooks";
 import { fetchAllServices } from "@/lib/redux/slices/discoverSlice/discoverserviceSlice";
 import { getServiceIcon } from "@/lib/utils/serviceIcon";
+import { useCmsTranslate } from "@/lib/i18n/useCmsTranslate";
 
 const SERVICE_COLORS = {
   "Ai Engineers": "#135773",
@@ -31,8 +33,11 @@ const getServiceColor = (serviceName) => {
   return SERVICE_COLORS[serviceName] || "#135773"; // fallback color
 };
 const ServiceSelectionGridV5 = () => {
+  const tBookExperts = useTranslations("bookExperts");
+  const tCommon = useTranslations("common");
+  const tCms = useCmsTranslate();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const [initialService, setInitialService] = useState("All Services");
+  const [initialService, setInitialService] = useState(null);
   const [showAll, setShowAll] = useState(false);
   const initialCount = 6;
   const dropdownRef = useRef(null);
@@ -88,10 +93,10 @@ const ServiceSelectionGridV5 = () => {
         <div className="flex flex-col md:flex-row md:items-start justify-between gap-6 mb-12">
           <div className="flex flex-col gap-2">
             <h2 className="text-[26px] md:text-[48px] font-bold leading-tight text-[#404040] text-center md:text-left font-['Open_Sauce_One_Bold']">
-              Book Experts
+              {tBookExperts("title")}
             </h2>
             <p className="text-[14px] md:text-[22px] text-[#636363] text-center md:text-left font-['Open_Sauce_One_Regular']">
-              Fulfill tech resource requirement fast.
+              {tBookExperts("subtitle")}
             </p>
           </div>
 
@@ -104,7 +109,7 @@ const ServiceSelectionGridV5 = () => {
               onClick={() => setIsDropdownOpen(!isDropdownOpen)}
               className="flex items-center gap-3 bg-[#F5F5F5] border border-[#E0E0E0] px-6 py-3 rounded-xl text-[#666666] font-medium hover:bg-gray-100 transition-all min-w-[180px] justify-between shadow-sm"
             >
-              <span>{initialService}</span>
+              <span>{initialService ? tCms(initialService) : tCommon("allServices")}</span>
               <svg
                 className={`w-5 h-5 transition-transform ${isDropdownOpen ? "rotate-180" : ""}`}
                 fill="none"
@@ -139,7 +144,7 @@ const ServiceSelectionGridV5 = () => {
                     onClick={() => handleServiceSelect(service)}
                     className="w-full text-left px-6 py-3 text-[#666666] hover:bg-green-50 hover:text-[#45A735] transition-colors border-b last:border-none border-[#F0F0F0]"
                   >
-                    {service.name}
+                    {tCms(service.name)}
                   </button>
                 ))}
               </div>
@@ -151,7 +156,7 @@ const ServiceSelectionGridV5 = () => {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 md:gap-10 mb-16">
           {isLoading ? (
             <p className="col-span-full text-center text-gray-600">
-              Loading services...
+              {tCommon("loadingServices")}
             </p>
           ) : displayedServices?.length > 0 ? (
             displayedServices.map((service) => (
@@ -165,7 +170,7 @@ const ServiceSelectionGridV5 = () => {
             ))
           ) : (
             <p className="col-span-full text-center text-gray-600">
-              No services available
+              {tBookExperts("noServices")}
             </p>
           )}
         </div>

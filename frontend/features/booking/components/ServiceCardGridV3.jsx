@@ -3,6 +3,8 @@
 import React from 'react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
+import { useTranslations } from 'next-intl';
+import { useCmsTranslate } from '@/lib/i18n/useCmsTranslate';
 
 const TechnologyPill = ({ label }) => (
   <div className="flex items-center gap-1 md:gap-2 bg-white rounded-full px-3 md:px-4 py-1.5 md:py-2 shadow-sm border border-transparent hover:border-[#45A735] transition-all cursor-pointer group">
@@ -19,6 +21,8 @@ const TechnologyPill = ({ label }) => (
 
 const ServiceCardGridV3 = ({ service, backgroundColor, iconUrl }) => {
   const router = useRouter();
+  const tServiceDetails = useTranslations('serviceDetails');
+  const tCms = useCmsTranslate();
 
   console.log("Rendering ServiceCardGridV3 for service:", service);
   const displayedTechs = service.technologies?.slice(0, 7) || [];
@@ -69,13 +73,13 @@ const ServiceCardGridV3 = ({ service, backgroundColor, iconUrl }) => {
             />
           </div>
           <h3 className="text-white text-lg md:text-2xl font-bold font-['Open_Sauce_One_Bold']">
-            {service.name}
+            {tCms(service.name)}
           </h3>
         </div>
 
         {/* Tagline */}
         <p className="text-white/90 text-xs md:text-sm mb-4 md:mb-6 ml-10 md:ml-14 font-['Open_Sauce_One_Regular']">
-          {service.content || 'Need Smarter AI Solutions? We Build & Optimize.'}
+          {tCms(service.content) || 'Need Smarter AI Solutions? We Build & Optimize.'}
         </p>
 
         {/* Divider */}
@@ -84,7 +88,7 @@ const ServiceCardGridV3 = ({ service, backgroundColor, iconUrl }) => {
         {/* Technologies Wrap */}
         <div className="flex flex-wrap gap-2 md:gap-3 mb-4 md:mb-8 flex-grow content-start">
           {displayedTechs.map((tech, index) => (
-            <TechnologyPill key={`${tech.id}-${index}`} label={tech.name} />
+            <TechnologyPill key={`${tech.id}-${index}`} label={tCms(tech.name)} />
           ))}
         </div>
 
@@ -102,7 +106,7 @@ const ServiceCardGridV3 = ({ service, backgroundColor, iconUrl }) => {
             className="bg-white px-4 md:px-8 py-2 md:py-3 rounded-lg md:rounded-xl font-bold text-xs md:text-sm hover:bg-white/90 transition-colors shadow-md cursor-pointer"
             style={{ color: backgroundColor }}
           >
-            Book Now
+            {tServiceDetails('bookNow')}
           </button>
         </div>
       </div>

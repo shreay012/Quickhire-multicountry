@@ -7,6 +7,7 @@ import { showError, showSuccess } from "@/lib/utils/toast";
 import { useStepperContext } from "./StepperContext";
 import { useSelector, useDispatch } from "react-redux";
 import { useSearchParams } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { fetchJobById } from "@/lib/redux/slices/bookingSlice/bookingSlice";
 import { paymentService } from "@/lib/services/paymentApi";
 import { bookingService } from "@/lib/services/bookingApi";
@@ -40,6 +41,9 @@ const PaymentStep = () => {
   } = useStepperContext();
   const dispatch = useDispatch();
   const searchParams = useSearchParams();
+  const t = useTranslations("paymentStep");
+  const tCommon = useTranslations("common");
+  const tDetails = useTranslations("detailsStep");
   const [pricingData, setPricingData] = useState(null);
   const [bookingData, setBookingData] = useState(null);
 
@@ -78,8 +82,15 @@ const PaymentStep = () => {
     user: authUser,
   } = useSelector((state) => state.auth);
 
+  const normalizeJobId = (rawJobId) => {
+    const normalized = typeof rawJobId === "string" ? rawJobId.trim() : "";
+    return normalized && normalized !== "undefined" && normalized !== "null"
+      ? normalized
+      : null;
+  };
+
   // Get jobId from query params
-  const jobId = searchParams.get("jobId");
+  const jobId = normalizeJobId(searchParams.get("jobId"));
 
   // Get job details from Redux
   const { jobDetails, isFetchingJobDetails } = useSelector(
@@ -208,7 +219,7 @@ const PaymentStep = () => {
     }
 
     // Get jobId from query params (should be set after login)
-    const currentJobId = searchParams.get("jobId");
+    const currentJobId = normalizeJobId(searchParams.get("jobId"));
     if (!currentJobId) {
       showError("No job ID found. Please try again.");
       return;
@@ -600,7 +611,7 @@ const PaymentStep = () => {
           lineHeight: 1.3,
         }}
       >
-        Complete Your Payment
+        {t('title')}
       </Typography>
 
       {/* Subheading */}
@@ -613,8 +624,7 @@ const PaymentStep = () => {
           lineHeight: 1.5,
         }}
       >
-        Once payment is completed, we'll match you with a suitable expert and
-        get started.
+        {t('subtitle')}
       </Typography>
 
       {/* Booking Summary Card */}
@@ -645,7 +655,7 @@ const PaymentStep = () => {
                   mb: 0.75,
                 }}
               >
-                Service {bookingData.services.length > 1 ? `#${index + 1}` : ""}
+                {bookingData.services.length > 1 ? t('serviceN', { number: index + 1 }) : t('service')}
               </Typography>
               <Typography
                 sx={{
@@ -687,7 +697,7 @@ const PaymentStep = () => {
                   mb: 0.75,
                 }}
               >
-                Technical skills
+                {t('technicalSkills')}
               </Typography>
               <Typography
                 sx={{
@@ -744,7 +754,7 @@ const PaymentStep = () => {
                       color: "var(--text-primary)",
                     }}
                   >
-                    Hours & Total Cost
+                    {t('hoursTotalCost')}
                   </Typography>
                   <InfoOutlinedIcon
                     sx={{
@@ -791,7 +801,7 @@ const PaymentStep = () => {
                       color: "var(--text-primary)",
                     }}
                   >
-                    Booking type
+                    {t('bookingType')}
                   </Typography>
                   <InfoOutlinedIcon
                     sx={{
@@ -824,8 +834,8 @@ const PaymentStep = () => {
                   }}
                 >
                   {service.isInstant
-                    ? `Starting: ${service.startDate}`
-                    : `Starting from ${service.startDate}`}
+                    ? t('starting', { date: service.startDate })
+                    : t('startingFrom', { date: service.startDate })}
                 </Typography>
               </Box>
             </Box>
@@ -849,7 +859,7 @@ const PaymentStep = () => {
               textAlign: "center",
             }}
           >
-            Loading booking details...
+            {t('loadingBooking')}
           </Typography>
         </Box>
       )}
@@ -875,7 +885,7 @@ const PaymentStep = () => {
               color: "#1F2937",
             }}
           >
-            Total Hours (All Services)
+            {t('totalHoursAll')}
           </Typography>
           <Typography
             sx={{
@@ -907,7 +917,7 @@ const PaymentStep = () => {
             lineHeight: 1.3,
           }}
         >
-          Price Breakdown
+          {t('priceBreakdown')}
         </Typography>
 
         {/* Divider Line */}
@@ -936,7 +946,7 @@ const PaymentStep = () => {
               color: "#6B7280",
             }}
           >
-            Subtotal
+            {t('subtotal')}
           </Typography>
           <Typography
             sx={{
@@ -970,7 +980,7 @@ const PaymentStep = () => {
                 color: "#45A735",
               }}
             >
-              Discount
+              {t('discount')}
             </Typography>
             <Typography
               sx={{
@@ -1006,7 +1016,7 @@ const PaymentStep = () => {
               color: "#6B7280",
             }}
           >
-            GST (18%)
+            {t('gstWithRate', { rate: 18 })}
           </Typography>
           <Typography
             sx={{
@@ -1038,7 +1048,7 @@ const PaymentStep = () => {
               color: "#1F2937",
             }}
           >
-            Total
+            {t('total')}
           </Typography>
           <Typography
             sx={{
@@ -1073,7 +1083,7 @@ const PaymentStep = () => {
               color: "#1F2937",
             }}
           >
-            GST Number (Optional)
+            {t('gstNumberOptional')}
           </Typography>
           <InfoOutlinedIcon
             sx={{
@@ -1084,7 +1094,7 @@ const PaymentStep = () => {
         </Box>
         <TextField
           fullWidth
-          placeholder="Enter GST Number (e.g., 27AAPCT1234A1Z0)"
+          placeholder={t('gstNumberPlaceholder')}
           value={gstNumber}
           onChange={(e) => setGstNumber(e.target.value)}
           sx={{
@@ -1158,7 +1168,7 @@ const PaymentStep = () => {
               },
             }}
           >
-            Terms & Conditions
+            {t('termsConditions')}
           </Box>
           .
         </Typography>
@@ -1204,7 +1214,7 @@ const PaymentStep = () => {
               transition: "all 0.3s ease",
             }}
           >
-            Back
+            {t('back')}
           </Button>
         )}
 
@@ -1234,7 +1244,7 @@ const PaymentStep = () => {
             transition: "all 0.3s ease",
           }}
         >
-          {isProcessingPayment ? "Processing..." : "Complete Payment"}
+          {isProcessingPayment ? t('processing') : t('completePayment')}
         </Button>
       </Box>
 
@@ -1261,7 +1271,7 @@ const PaymentStep = () => {
                 mb: 1,
               }}
             >
-              Login Required
+              {t('loginRequired')}
             </Typography>
             <Typography
               sx={{
@@ -1269,7 +1279,7 @@ const PaymentStep = () => {
                 color: "#6B7280",
               }}
             >
-              Please login to complete your booking
+              {t('loginToBook')}
             </Typography>
           </Box>
 
@@ -1330,7 +1340,7 @@ const PaymentStep = () => {
                 mb: 1.5,
               }}
             >
-              Mobile Number{" "}
+              {tDetails("mobileNumber")}{" "}
               <Box component="span" sx={{ color: "#EF4444" }}>
                 *
               </Box>
@@ -1339,7 +1349,7 @@ const PaymentStep = () => {
             <Box sx={{ position: "relative" }}>
               <TextField
                 fullWidth
-                placeholder="Enter Mobile Number"
+                placeholder={tDetails("enterMobileNumber")}
                 value={mobileNumber}
                 onChange={handleMobileNumberChange}
                 disabled={otpSent}
@@ -1398,7 +1408,7 @@ const PaymentStep = () => {
                   },
                 }}
               >
-                {otpVerified ? "✓ Verified" : "Send OTP"}
+                {otpVerified ? tDetails('verified') : tDetails('sendOtp')}
               </Button>
             </Box>
           </Box>
@@ -1413,7 +1423,7 @@ const PaymentStep = () => {
                 mb: 1.5,
               }}
             >
-              OTP{" "}
+              {tDetails('otp')}{" "}
               <Box component="span" sx={{ color: "#EF4444" }}>
                 *
               </Box>
@@ -1466,7 +1476,7 @@ const PaymentStep = () => {
                   mt: 1,
                 }}
               >
-                Resend OTP in {formatTime(resendSeconds)}
+                {t('resendOtpIn', { time: formatTime(resendSeconds) })}
               </Typography>
             )}
           </Box>

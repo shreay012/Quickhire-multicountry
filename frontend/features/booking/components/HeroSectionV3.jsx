@@ -4,8 +4,10 @@ import React from "react";
 import Button from "@mui/material/Button";
 
 import Image from "next/image";
+import { useTranslations } from "next-intl";
 
 const HeroSectionV3 = () => {
+  const t = useTranslations("vibeCoding");
   return (
     <section className="w-full bg-white py-16 md:py-24">
       <div className="mx-auto max-w-[1440px] px-6 sm:px-12 lg:px-24">
@@ -13,14 +15,13 @@ const HeroSectionV3 = () => {
           {/* Left Content */}
           <div className="flex-1 text-center lg:text-left">
             <h2 className="text-[32px] md:text-[42px] lg:text-[56px] font-bold leading-[1.2] mb-6 font-['Open_Sauce_One_Bold']">
-              <span className="text-[#484848]">Not sure what </span>
+              <span className="text-[#484848]">{t("titleLine1")} </span>
               <br className="hidden md:block" />
-              <span className="text-[#45A735]">you need?</span>
+              <span className="text-[#45A735]">{t("titleHighlight")}</span>
             </h2>
 
             <p className="text-[18px] md:text-[24px] text-[#636363] leading-[1.5] mb-10 max-w-[500px] mx-auto lg:mx-0 font-['Open_Sauce_One_Regular']">
-              Tell us what you're trying to build or fix, and we'll match you
-              with the right expert.
+              {t("subtitle")}
             </p>
 
             <Button
@@ -59,7 +60,7 @@ const HeroSectionV3 = () => {
               }}
             >
               <span style={{ position: "relative", zIndex: 1 }}>
-                Find Right Experts
+                {t("ctaPlural")}
               </span>
             </Button>
           </div>

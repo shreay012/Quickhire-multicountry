@@ -39,6 +39,7 @@ import {
   setSelectedJobId,
   fetchJobById,
 } from "@/lib/redux/slices/bookingSlice/bookingSlice";
+import { useTranslations } from "next-intl";
 
 const DetailsStep = () => {
   const {
@@ -55,6 +56,7 @@ const DetailsStep = () => {
   } = useStepperContext();
   const dispatch = useDispatch();
   const router = useRouter();
+  const t = useTranslations("detailsStep");
   const {
     isLoading,
     error,
@@ -905,7 +907,7 @@ const DetailsStep = () => {
           lineHeight: 1.3,
         }}
       >
-        You're almost there!
+        {t('title')}
       </Typography>
 
       {/* Subheading */}
@@ -918,7 +920,7 @@ const DetailsStep = () => {
           lineHeight: 1.5,
         }}
       >
-        Just a quick step to unlock expert resources.
+        {t('subtitle')}
       </Typography>
       <Box
         sx={{
@@ -939,7 +941,7 @@ const DetailsStep = () => {
             mb: { xs: 1, sm: 1.5 },
           }}
         >
-          Mobile Number{" "}
+          {t('mobileNumber')}{" "}
           <Box component="span" sx={{ color: "#EF4444" }}>
             *
           </Box>
@@ -948,7 +950,7 @@ const DetailsStep = () => {
         <Box sx={{ position: "relative" }}>
           <TextField
             fullWidth
-            placeholder="Enter Mobile Number"
+            placeholder={t('enterMobileNumber')}
             value={mobileNumber}
             onChange={handleMobileNumberChange}
             disabled={otpSent}
@@ -1007,7 +1009,7 @@ const DetailsStep = () => {
               },
             }}
           >
-            {otpVerified ? "✓ Verified" : "Send OTP"}
+            {otpVerified ? t('verified') : t('sendOtp')}
           </Button>
         </Box>
       </Box>
@@ -1022,7 +1024,7 @@ const DetailsStep = () => {
             mb: { xs: 1, sm: 1.5 },
           }}
         >
-          OTP{" "}
+          {t('otp')}{" "}
           <Box component="span" sx={{ color: "#EF4444" }}>
             *
           </Box>
@@ -1124,9 +1126,7 @@ const DetailsStep = () => {
                 color: "#6B7280",
               }}
             >
-              {showResendTimer && resendSeconds > 0
-                ? `Didn't receive OTP yet?`
-                : "Didn't receive OTP yet?"}
+              {t('didntReceiveOtp')}
             </Typography>
             {/* {showResendTimer && resendSeconds > 0 ? (
               <Button
@@ -1158,7 +1158,7 @@ const DetailsStep = () => {
                     verticalAlign: "middle",
                   }}
                 />
-                Resend
+                {t('resend')}
                 <Typography
                   sx={{
                     fontSize: { xs: "12px", sm: "13px" },
@@ -1169,7 +1169,7 @@ const DetailsStep = () => {
                 >
                   {showResendTimer && resendSeconds > 0
                     ? ` ${formatTime(resendSeconds)}`
-                    : "Resend"}
+                    : t('resend')}
                 </Typography>
               </Button>
             ) : (
@@ -1201,7 +1201,7 @@ const DetailsStep = () => {
                     verticalAlign: "middle",
                   }}
                 />
-                Resend
+                {t('resend')}
                 <Typography
                   sx={{
                     fontSize: { xs: "12px", sm: "13px" },
@@ -1261,7 +1261,7 @@ const DetailsStep = () => {
                         verticalAlign: "middle",
                       }}
                     />
-                    Resend
+                    {t('resend')}
                     <Typography
                       sx={{
                         fontSize: { xs: "12px", sm: "13px" },
@@ -1272,7 +1272,7 @@ const DetailsStep = () => {
                     >
                       {showResendTimer && resendSeconds > 0
                         ? ` ${formatTime(resendSeconds)}`
-                        : "Resend"}
+                        : t('resend')}
                     </Typography>
                   </Button>
                 ) : (
@@ -1304,7 +1304,7 @@ const DetailsStep = () => {
                         verticalAlign: "middle",
                       }}
                     />
-                    Resend
+                    {t('resend')}
                     <Typography
                       sx={{
                         fontSize: { xs: "12px", sm: "13px" },
@@ -1346,7 +1346,7 @@ const DetailsStep = () => {
               lineHeight: 1.3,
             }}
           >
-            Fill Your Details
+            {t('fillYourDetails')}
           </Typography>
 
           {/* Full Name Field */}
@@ -1359,14 +1359,14 @@ const DetailsStep = () => {
                 mb: { xs: 1, sm: 1 },
               }}
             >
-              Full Name{" "}
+              {t('fullName')}{" "}
               <Box component="span" sx={{ color: "#EF4444" }}>
                 *
               </Box>
             </Typography>
             <TextField
               fullWidth
-              placeholder="Enter Full Name"
+              placeholder={t('enterFullName')}
               value={fullName}
               onChange={(e) => setFullName(e.target.value)}
               sx={{
@@ -1407,7 +1407,7 @@ const DetailsStep = () => {
                 mb: { xs: 1, sm: 1 },
               }}
             >
-              Email{" "}
+              {t('email')}{" "}
               <Box component="span" sx={{ color: "#EF4444" }}>
                 *
               </Box>
@@ -1415,7 +1415,7 @@ const DetailsStep = () => {
             <TextField
               fullWidth
               type="email"
-              placeholder="Enter Email"
+              placeholder={t('enterEmail')}
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               sx={{
@@ -1475,7 +1475,7 @@ const DetailsStep = () => {
               textAlign: "left",
             }}
           >
-            Review Your Booking
+            {t('reviewBooking')}
           </Typography>
 
           {/* Modal Subtext */}
@@ -1488,7 +1488,7 @@ const DetailsStep = () => {
               lineHeight: 1.6,
             }}
           >
-            Decide how you'd like to proceed
+            {t('decideHowToProceed')}
           </Typography>
 
           {/* Question Text */}
@@ -1502,8 +1502,7 @@ const DetailsStep = () => {
               textAlign: "center",
             }}
           >
-            Would you like to review your cart or continue with your current
-            selection?
+            {t('reviewCartQuestion')}
           </Typography>
 
           {/* Action Buttons */}
@@ -1534,7 +1533,7 @@ const DetailsStep = () => {
                 },
               }}
             >
-              Review
+              {t('review')}
             </Button>
 
             {/* Pay Now Button */}
@@ -1557,7 +1556,7 @@ const DetailsStep = () => {
                 },
               }}
             >
-              Pay Now
+              {t('payNow')}
             </Button>
           </Box>
         </DialogContent>
@@ -1613,7 +1612,7 @@ const DetailsStep = () => {
               transition: "all 0.3s ease",
             }}
           >
-            Back
+            {t('back')}
           </Button>
         )}
 
@@ -1792,7 +1791,7 @@ const DetailsStep = () => {
             },
           }}
         >
-          {isProfileSaving ? "Saving..." : "Continue"}
+          {isProfileSaving ? t('saving') : t('continue')}
         </Button>
       </Box>
 

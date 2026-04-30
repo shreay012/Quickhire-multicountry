@@ -1,8 +1,10 @@
 "use client";
 import Image from "next/image";
 import Button from "@mui/material/Button";
+import { useTranslations } from "next-intl";
 
 const Mainbanner = () => {
+  const t = useTranslations("bookBanner");
   const handleScrollToServices = () => {
     const section = document.getElementById("book-experts-section");
     if (section) {
@@ -46,13 +48,12 @@ const Mainbanner = () => {
 
         <div className="max-w-3xl z-10 relative order-2 md:order-1 text-center md:text-left">
           <h1 className="text-[32px] lg:text-[55px] font-[800] mb-6 leading-tight text-[#484848] select-auto font-['Open_Sauce_One_ExtraBold']">
-            The fastest way to add
+            {t("titleLine1")}
             <br />
-            <span className="text-[#45A735]">flexible tech</span> expertise
+            <span className="text-[#45A735]">{t("titleHighlight")}</span> {t("titleEnd")}
           </h1>
           <p className="text-[18px] md:text-lg text-gray-600 mb-8 max-w-xl mx-auto md:mx-0 font-['Open_Sauce_One_Regular'] font-normal leading-[160%]">
-            Developers, designers, QA, and more - on demand, led by a dedicated
-            Technical Project Manager.
+            {t("subtitle")}
           </p>
           <div className="flex justify-center md:justify-start">
             <Button
@@ -92,7 +93,7 @@ const Mainbanner = () => {
               }}
             >
               <span style={{ position: "relative", zIndex: 1 }}>
-                Hire in 10 Minutes
+                {t("cta")}
               </span>
             </Button>
           </div>

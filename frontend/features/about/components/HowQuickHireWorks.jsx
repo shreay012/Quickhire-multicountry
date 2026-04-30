@@ -1,9 +1,13 @@
 'use client';
 
 import { Box, Typography } from '@mui/material';
+import { useTranslations } from 'next-intl';
 import { useCmsContent } from '@/lib/hooks/useCmsContent';
+import { useCmsTranslate } from '@/lib/i18n/useCmsTranslate';
 
 export default function HowQuickHireWorks({ hideVideo }) {
+  const t = useTranslations('howVideo');
+  const tCms = useCmsTranslate();
   const { items: steps } = useCmsContent('process_steps', []);
   return (
     <section
@@ -19,7 +23,7 @@ export default function HowQuickHireWorks({ hideVideo }) {
           <h2
             className="font-bold text-(--bg-primary) leading-[150%] tracking-[0px] capitalize text-3xl md:text-[44px]"
           >
-            How QuickHire <span style={{ color: 'var(--quickhire-green)' }}>Works ?</span>
+            {t('title')} <span style={{ color: 'var(--quickhire-green)' }}>{t('titleHighlight')}</span>
           </h2>
         </div>
 
@@ -48,13 +52,13 @@ export default function HowQuickHireWorks({ hideVideo }) {
                         className="text-white font-bold mb-2 leading-[100%] tracking-[0%]"
                         style={{ fontSize: '20px' }}
                       >
-                        {step.title}
+                        {tCms(step.title)}
                       </h3>
                       <p
                         className="text-gray-300 font-normal leading-normal"
                         style={{ fontSize: '14px' }}
                       >
-                        {step.description}
+                        {tCms(step.description)}
                       </p>
                     </div>
                   </div>
@@ -114,13 +118,13 @@ export default function HowQuickHireWorks({ hideVideo }) {
                         className="text-white font-bold mb-2 leading-[100%] tracking-[0%]"
                         style={{ fontSize: '24px' }}
                       >
-                        {step.title}
+                        {tCms(step.title)}
                       </h3>
                       <p
                         className="text-gray-300 font-normal leading-normal"
                         style={{ fontSize: '16px' }}
                       >
-                        {step.description}
+                        {tCms(step.description)}
                       </p>
                     </div>
                   </div>

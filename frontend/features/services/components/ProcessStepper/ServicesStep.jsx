@@ -10,9 +10,11 @@ import {
 } from "@mui/material";
 import CheckBoxOutlineBlankIcon from "@mui/icons-material/CheckBoxOutlineBlank";
 import CheckBoxIcon from "@mui/icons-material/CheckBox";
+import { useTranslations } from "next-intl";
 import { useStepperContext } from "./StepperContext";
 
 const ServicesStep = ({ serviceId, selectedService }) => {
+  const t = useTranslations("servicesStep");
   console.log("ServicesStep received serviceId:", serviceId);
   console.log("ServicesStep received selectedService:", selectedService);
 
@@ -77,7 +79,7 @@ const ServicesStep = ({ serviceId, selectedService }) => {
           pr: 2,
         }}
       >
-        Choose what you need help with
+        {t('title')}
       </Typography>
 
       {/* Subheading */}
@@ -88,7 +90,7 @@ const ServicesStep = ({ serviceId, selectedService }) => {
           mb: { xs: 3, md: 2 },
         }}
       >
-        Select one or more technologies you want to expert to work on.
+        {t('subtitle')}
       </Typography>
 
       {/* Divider Line */}
@@ -156,7 +158,7 @@ const ServicesStep = ({ serviceId, selectedService }) => {
           fontStyle: "italic",
         }}
       >
-        Not sure? Pick the closest option — you can clarify later.
+        {t('helper')}
       </Typography>
 
       {/* Spacer - Pushes button to bottom */}
@@ -239,7 +241,7 @@ const ServicesStep = ({ serviceId, selectedService }) => {
             },
           }}
         >
-          Continue
+          {t('continue')}
         </Button>
       </Box>
     </Box>

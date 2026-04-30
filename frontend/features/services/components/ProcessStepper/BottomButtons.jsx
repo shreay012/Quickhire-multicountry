@@ -2,15 +2,18 @@
 
 import React from "react";
 import { Box, Button } from "@mui/material";
+import { useTranslations } from "next-intl";
 import { useStepperContext } from "./StepperContext";
 
-const BottomButtons = ({ 
-  onContinue, 
-  continueDisabled = false, 
-  continueLabel = "Continue",
-  isLoading = false 
+const BottomButtons = ({
+  onContinue,
+  continueDisabled = false,
+  continueLabel,
+  isLoading = false,
 }) => {
   const { previousStep, isFirstStep } = useStepperContext();
+  const t = useTranslations("stepper");
+  const label = continueLabel ?? t("continue");
 
   return (
     <Box
@@ -43,7 +46,7 @@ const BottomButtons = ({
             transition: "all 0.3s ease",
           }}
         >
-          Back
+          {t("back")}
         </Button>
       )}
 
@@ -74,7 +77,7 @@ const BottomButtons = ({
           transition: "all 0.3s ease",
         }}
       >
-        {isLoading ? "Loading..." : continueLabel}
+        {isLoading ? t("loading") : label}
       </Button>
     </Box>
   );
