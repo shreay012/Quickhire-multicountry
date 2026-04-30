@@ -1,62 +1,11 @@
 import axios from 'axios';
+import { flattenI18nDeep, readActiveLocale } from '../i18n/flattenI18nDeep';
 
 // QuickHire backend base URL. Uses NEXT_PUBLIC_API_URL when set and falls back to the local backend.
 // Local backend routes are mounted at root, not under /api.
 const API_BASE =
   (typeof process !== 'undefined' && process.env.NEXT_PUBLIC_API_URL) ||
   'http://localhost:4000';
-
-// --- i18n object flattener --------------------------------------------------
-// Backend services may return { en, hi, ar, de, ... } objects for fields
-// like name/description after the multi-country pricing rollout. React
-// can't render those objects as children, so we recursively walk every
-// API response and replace any i18n-shaped object with the locale string.
-const I18N_KEYS = ['en', 'hi', 'ar', 'de', 'es', 'fr', 'ja', 'zh-CN'];
-
-function readActiveLocale() {
-  if (typeof document === 'undefined') return 'en';
-  const m = document.cookie.match(/(?:^|;\s*)qh_locale=([^;]+)/);
-  return m ? decodeURIComponent(m[1]) : 'en';
-}
-
-function isI18nObject(v) {
-  if (!v || typeof v !== 'object' || Array.isArray(v)) return false;
-  // Heuristic: at least one i18n key AND every value that exists is a string.
-  // This avoids misclassifying random nested objects that happen to have an
-  // `en` field by accident.
-  let hasI18nKey = false;
-  for (const k of Object.keys(v)) {
-    if (I18N_KEYS.includes(k)) {
-      hasI18nKey = true;
-      if (v[k] != null && typeof v[k] !== 'string') return false;
-    }
-  }
-  return hasI18nKey;
-}
-
-function pickI18n(obj, locale) {
-  return obj[locale] || obj.en || obj[Object.keys(obj)[0]] || '';
-}
-
-// Walk arbitrary JSON, returning a new structure where every i18n-shaped
-// object is replaced with the locale-picked string. Skips circular refs.
-function flattenI18nDeep(input, locale, seen = new WeakSet()) {
-  if (input == null) return input;
-  if (typeof input !== 'object') return input;
-  if (seen.has(input)) return input;
-  seen.add(input);
-  if (Array.isArray(input)) {
-    return input.map((v) => flattenI18nDeep(v, locale, seen));
-  }
-  if (isI18nObject(input)) {
-    return pickI18n(input, locale);
-  }
-  const out = {};
-  for (const k of Object.keys(input)) {
-    out[k] = flattenI18nDeep(input[k], locale, seen);
-  }
-  return out;
-}
 
 const axiosInstance = axios.create({
   baseURL: API_BASE,

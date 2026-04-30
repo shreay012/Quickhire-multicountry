@@ -1,6 +1,7 @@
 // Real backend client for staff portals (admin / pm / resource).
 // Separate from the user-facing mock axiosInstance so we don't break existing flows.
 import axios from 'axios';
+import { flattenI18nDeep, readActiveLocale } from '../i18n/flattenI18nDeep';
 
 // ✅ QuickHire Backend URL — backend listens on :4000 and mounts routes at root in local dev.
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
@@ -43,7 +44,16 @@ staffApi.interceptors.request.use((config) => {
 });
 
 staffApi.interceptors.response.use(
-  (res) => res,
+  (res) => {
+    try {
+      if (res && res.data != null && typeof res.data === 'object') {
+        res.data = flattenI18nDeep(res.data, readActiveLocale());
+      }
+    } catch {
+      /* never let normalization break a successful response */
+    }
+    return res;
+  },
   (err) => {
     if (err?.response?.status === 401 && typeof window !== 'undefined') {
       staffAuth.clear();
