@@ -3,6 +3,13 @@ import { createSlice } from '@reduxjs/toolkit';
 const STORAGE_KEY = 'qh_cart_v1';
 const TAX_RATE = 0.18;
 
+function flattenI18nName(n) {
+  if (n && typeof n === 'object' && !Array.isArray(n)) {
+    return n.en || Object.values(n)[0] || 'Service';
+  }
+  return n || 'Service';
+}
+
 function loadInitial() {
   if (typeof window === 'undefined') return { items: [] };
   try {
@@ -10,7 +17,10 @@ function loadInitial() {
     if (!raw) return { items: [] };
     const parsed = JSON.parse(raw);
     if (!parsed || !Array.isArray(parsed.items)) return { items: [] };
-    return { items: parsed.items };
+    // Heal any cart items that were persisted before the i18n-object fix —
+    // their `name` may still be { en, hi, ... } and crash on render.
+    const items = parsed.items.map((i) => ({ ...i, name: flattenI18nName(i.name) }));
+    return { items };
   } catch {
     return { items: [] };
   }
@@ -58,7 +68,7 @@ const cartSlice = createSlice({
         state.items.push({
           id,
           serviceId: incoming.serviceId || id,
-          name: incoming.name || 'Service',
+          name: flattenI18nName(incoming.name),
           image: incoming.image || null,
           duration: incoming.duration || '',
           price: Number(incoming.price || 0),

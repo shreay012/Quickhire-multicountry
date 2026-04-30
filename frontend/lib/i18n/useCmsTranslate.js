@@ -6,6 +6,21 @@ import { useEffect, useState, useMemo } from "react";
 // Cache loaded CMS maps per locale to avoid re-fetching across components.
 const CMS_CACHE = {};
 
+// Recognized i18n shape from the backend (e.g. service.name = { en, hi, ar, de }).
+// We treat any plain object that has at least one of these keys as an i18n object.
+const I18N_KEYS = ["en", "hi", "ar", "de", "es", "fr", "ja", "zh-CN"];
+
+function isI18nObject(v) {
+  if (!v || typeof v !== "object" || Array.isArray(v)) return false;
+  for (const k of I18N_KEYS) if (k in v) return true;
+  return false;
+}
+
+function pickI18n(obj, locale) {
+  if (!obj) return "";
+  return obj[locale] || obj.en || obj[Object.keys(obj)[0]] || "";
+}
+
 async function loadCmsMap(locale) {
   if (CMS_CACHE[locale]) return CMS_CACHE[locale];
   try {
@@ -23,10 +38,15 @@ async function loadCmsMap(locale) {
 }
 
 /**
- * Translates a known English CMS string (from backend cms.defaults.js) into the
- * active locale via messages/cms/{locale}.json. Falls back to the original text
- * when no mapping exists. Lives outside next-intl's namespace so keys can
- * contain dots, periods, or any free-form English text.
+ * Translates a CMS value to the active locale.
+ *
+ * Accepts either:
+ *   - a plain English string (e.g. "AI Engineers") — looked up in the CMS map
+ *   - an i18n object (e.g. { en: "...", hi: "...", de: "..." }) — picks the
+ *     active locale, falls back to en, then to first available
+ *
+ * Returning a non-string here would crash React with "Objects are not valid
+ * as a React child", so we always coerce to string.
  */
 export function useCmsTranslate() {
   const locale = useLocale();
@@ -43,10 +63,16 @@ export function useCmsTranslate() {
   }, [locale]);
 
   return useMemo(() => {
-    return (text) => {
-      if (text == null || text === "") return text;
-      const v = map?.[text];
-      return typeof v === "string" && v.length > 0 ? v : text;
+    return (value) => {
+      if (value == null || value === "") return value;
+
+      // Backend i18n object — pick locale and skip the lookup map
+      if (isI18nObject(value)) return pickI18n(value, locale);
+
+      if (typeof value !== "string") return String(value);
+
+      const v = map?.[value];
+      return typeof v === "string" && v.length > 0 ? v : value;
     };
-  }, [map]);
+  }, [map, locale]);
 }

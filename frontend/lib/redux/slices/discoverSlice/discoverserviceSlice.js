@@ -2,6 +2,7 @@
 
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import { discoverService } from '../../../services/discoverService';
+import { normalizeService, normalizeServiceList } from '../../../i18n/normalizeI18n';
 
 // Async Thunks
 export const fetchAllServices = createAsyncThunk(
@@ -10,9 +11,14 @@ export const fetchAllServices = createAsyncThunk(
     try {
       const response = await discoverService.getAllServices();
       // Backend returns { success, data: [...] } — extract the array
-      return Array.isArray(response.data) ? response.data
+      const list = Array.isArray(response.data) ? response.data
         : Array.isArray(response.data?.data) ? response.data.data
         : [];
+      // Flatten any i18n-object fields (name/description) to the active
+      // locale before they enter Redux. Otherwise raw renders like
+      // <h3>{service.name}</h3> crash with "Objects are not valid as a
+      // React child" when the backend returns the multi-country shape.
+      return normalizeServiceList(list);
     } catch (error) {
       return rejectWithValue(error.response?.data || 'Failed to fetch services');
     }
@@ -24,7 +30,8 @@ export const fetchServiceById = createAsyncThunk(
   async (serviceId, { rejectWithValue }) => {
     try {
       const response = await discoverService.getServiceById(serviceId);
-      return response.data?.data || response.data;
+      const svc = response.data?.data || response.data;
+      return normalizeService(svc);
     } catch (error) {
       return rejectWithValue(error.response?.data || 'Failed to fetch service');
     }
