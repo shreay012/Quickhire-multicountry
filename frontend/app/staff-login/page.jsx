@@ -67,6 +67,11 @@ function StaffLoginInner() {
       if (!token) throw new Error('No token in response');
       user.role = role;
       staffAuth.setSession({ token, user });
+      // Notify SocketProvider so it connects with the new staff session
+      // (storage events only fire across tabs, so dispatch in-tab too).
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new Event('staffLoggedIn'));
+      }
       router.replace(ROLE_HOME[role] || '/');
     } catch (err) {
       setError(err?.response?.data?.error?.message || err.message || 'Login failed');
