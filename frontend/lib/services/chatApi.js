@@ -11,12 +11,15 @@ import axiosInstance from '../axios/axiosInstance';
  * @param {string} serviceId - Service ID
  * @returns {Promise} - Chat messages response
  */
-export const getChatMessages = async (customerId, serviceId) => {
+// BOOKING_ID_PARAM_FIX_V1: accept bookingId so client reads from booking_<id> room.
+export const getChatMessages = async (customerId, serviceId, bookingId) => {
   try {
     console.log('📡 API: GET /chat/messages/' + customerId);
     console.log('   └─ Customer ID (PM or Service):', customerId);
     console.log('   └─ Service ID:', serviceId);
     const response = await axiosInstance.get(`/chat/messages/${customerId}`, {
+      params: { serviceId, ...(bookingId ? { bookingId } : {}) },
+      // legacy callers may have set params via custom adapter — ignore
       params: { serviceId },
     });
     console.log('✅ API: Chat messages response:', response.data);

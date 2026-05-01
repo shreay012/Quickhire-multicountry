@@ -70,7 +70,8 @@ const ChatPanel = ({
 
     try {
       const customerId = adminId && adminId.trim() ? adminId : serviceId;
-      const response = await getChatMessages(customerId, serviceId);
+      // BOOKING_ID_PARAM_FIX_V1_FE: pass bookingId so server filters by booking_<id> room.
+      const response = await getChatMessages(customerId, serviceId, bookingId);
 
       if (response.success && response.data) {
         const parsedMessages = response.data

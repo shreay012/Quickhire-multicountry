@@ -29,11 +29,11 @@ r.get('/messages/:customerId',
   roleGuard(['user', 'pm', 'admin']),
   asyncHandler(async (req, res) => {
     const { customerId } = req.params;
-    const { serviceId, before, limit } = req.query;
-    if (!serviceId) throw new AppError('VALIDATION_ERROR', 'serviceId required', 422);
+    const { serviceId, before, limit, bookingId } = req.query;
+    if (!serviceId && !bookingId) throw new AppError('VALIDATION_ERROR', 'serviceId or bookingId required', 422);
     try {
       const result = await chatService.getHistory({
-        user: req.user, customerId, serviceId, before,
+        user: req.user, customerId, serviceId, bookingId, before,
         limit: Number(limit) || 50,
       });
       res.json({ success: true, data: result.items, meta: { roomId: result.roomId } });
@@ -86,10 +86,13 @@ r.post('/send/:customerId',
       attachment = { key: body.attachmentKey, url: `https://${env.S3_BUCKET_CHAT}.s3.${env.AWS_REGION}.amazonaws.com/${body.attachmentKey}` };
     }
 
-    // Resolve roomId — same convention as getHistory
-    const roomId = customerId === body.serviceId
-      ? chatService.roomIdFor({ serviceId: body.serviceId, userId: req.user.id })
-      : chatService.roomIdFor({ pmId: customerId, serviceId: body.serviceId });
+    // BOOKING_ROOM_ROUTES_FIX_V1: prefer booking-scoped room when bookingId is given.
+    // Falls back to legacy pairwise convention for non-booking flows (pre-booking chat).
+    const roomId = body.bookingId
+      ? `booking_${body.bookingId}`
+      : (customerId === body.serviceId
+        ? chatService.roomIdFor({ serviceId: body.serviceId, userId: req.user.id })
+        : chatService.roomIdFor({ pmId: customerId, serviceId: body.serviceId }));
 
     const message = await chatService.persistAndBroadcast({
       sender: req.user,

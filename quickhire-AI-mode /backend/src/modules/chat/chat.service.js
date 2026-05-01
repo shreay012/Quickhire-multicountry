@@ -65,10 +65,12 @@ export async function canJoinRoom(user, roomId) {
   return false;
 }
 
-export async function getHistory({ user, customerId, serviceId, before, limit = 50 }) {
-  // customerId is either pmId (assigned) or serviceId (pending)
+export async function getHistory({ user, customerId, serviceId, bookingId, before, limit = 50 }) {
+  // BOOKING_ROOM_HISTORY_FIX_V1: prefer booking-scoped room when bookingId provided.
   let roomId;
-  if (customerId === serviceId) {
+  if (bookingId && /^[0-9a-f]{24}$/i.test(String(bookingId))) {
+    roomId = `booking_${bookingId}`;
+  } else if (customerId === serviceId) {
     roomId = roomIdFor({ serviceId, userId: user.id });
   } else {
     roomId = roomIdFor({ pmId: customerId, serviceId });
