@@ -46,6 +46,163 @@ function PayoutStatusBadge({ status }) {
   );
 }
 
+// ── Compute Payout Modal ──────────────────────────────────────────────────────
+function ComputePayoutModal({ onClose, onComputed }) {
+  const [staff, setStaff] = useState([]);
+  const [staffId, setStaffId] = useState('');
+  const today = new Date().toISOString().slice(0, 10);
+  const monthAgo = new Date(Date.now() - 30 * 86400_000).toISOString().slice(0, 10);
+  const [from, setFrom] = useState(monthAgo);
+  const [to, setTo] = useState(today);
+  const [commissionPct, setCommissionPct] = useState(20);
+  const [loading, setLoading] = useState(false);
+  const [loadingStaff, setLoadingStaff] = useState(true);
+
+  useEffect(() => {
+    Promise.all([
+      staffApi.get('/admin/pms-list').catch(() => ({ data: { data: [] } })),
+      staffApi.get('/admin/resources-list').catch(() => ({ data: { data: [] } })),
+    ]).then(([pmRes, resRes]) => {
+      const pms = (pmRes.data?.data || pmRes.data || []).map((p) => ({ ...p, role: 'pm' }));
+      const reses = (resRes.data?.data || resRes.data || []).map((r) => ({ ...r, role: 'resource' }));
+      setStaff([...pms, ...reses]);
+    }).finally(() => setLoadingStaff(false));
+  }, []);
+
+  const submit = async (e) => {
+    e.preventDefault();
+    if (!staffId) { showError('Select a staff member.'); return; }
+    setLoading(true);
+    try {
+      await staffApi.post('/admin-ops/payouts/compute', {
+        staffId,
+        cycleStart: new Date(from).toISOString(),
+        cycleEnd: new Date(to + 'T23:59:59').toISOString(),
+        commissionPct: Number(commissionPct),
+      });
+      showSuccess('Payout computed.');
+      onComputed();
+    } catch (err) {
+      showError(err?.response?.data?.error?.message || 'Failed to compute payout.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-[2px]">
+      <div className="bg-white rounded-2xl border border-[#E5F1E2] shadow-xl w-full max-w-md mx-4 p-6">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-open-sauce-bold text-[#26472B]">Compute Payout</h2>
+          <button onClick={onClose} className="text-[#909090] hover:text-[#484848] cursor-pointer text-xl leading-none">&times;</button>
+        </div>
+        <form onSubmit={submit} className="space-y-4">
+          <div>
+            <label className="block text-xs font-open-sauce-semibold text-[#26472B] mb-1.5">Staff member</label>
+            <select
+              value={staffId}
+              onChange={(e) => setStaffId(e.target.value)}
+              disabled={loadingStaff}
+              className="w-full border border-[#E5F1E2] rounded-lg px-3 py-2 text-sm font-open-sauce focus:ring-2 focus:ring-[#45A735]/30 focus:border-[#45A735] focus:outline-none"
+              required
+            >
+              <option value="">{loadingStaff ? 'Loading…' : 'Select…'}</option>
+              {staff.map((p) => (
+                <option key={p._id} value={p._id}>
+                  [{p.role.toUpperCase()}] {p.name || p.mobile || String(p._id).slice(-6)}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-open-sauce-semibold text-[#26472B] mb-1.5">From</label>
+              <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} required
+                className="w-full border border-[#E5F1E2] rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#45A735]/30 focus:border-[#45A735] focus:outline-none" />
+            </div>
+            <div>
+              <label className="block text-xs font-open-sauce-semibold text-[#26472B] mb-1.5">To</label>
+              <input type="date" value={to} onChange={(e) => setTo(e.target.value)} required
+                className="w-full border border-[#E5F1E2] rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#45A735]/30 focus:border-[#45A735] focus:outline-none" />
+            </div>
+          </div>
+          <div>
+            <label className="block text-xs font-open-sauce-semibold text-[#26472B] mb-1.5">Commission %</label>
+            <input type="number" min="0" max="100" step="0.5" value={commissionPct}
+              onChange={(e) => setCommissionPct(e.target.value)}
+              className="w-full border border-[#E5F1E2] rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#45A735]/30 focus:border-[#45A735] focus:outline-none" />
+          </div>
+          <div className="flex gap-2 pt-2">
+            <Button type="submit" variant="primary" disabled={loading} className="flex-1">
+              {loading ? 'Computing…' : 'Compute'}
+            </Button>
+            <Button type="button" variant="subtle" onClick={onClose} disabled={loading}>Cancel</Button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+// ── Reconciliation Modal ──────────────────────────────────────────────────────
+function ReconciliationModal({ onClose }) {
+  const today = new Date().toISOString().slice(0, 10);
+  const monthAgo = new Date(Date.now() - 30 * 86400_000).toISOString().slice(0, 10);
+  const [from, setFrom] = useState(monthAgo);
+  const [to, setTo] = useState(today);
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(false);
+
+  const fetchReport = async () => {
+    setLoading(true);
+    setData(null);
+    try {
+      const r = await staffApi.get('/admin-ops/payouts/reconciliation', { params: { from, to } });
+      setData(r.data?.data || r.data);
+    } catch (err) {
+      showError(err?.response?.data?.error?.message || 'Failed to fetch reconciliation.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-[2px]">
+      <div className="bg-white rounded-2xl border border-[#E5F1E2] shadow-xl w-full max-w-lg mx-4 p-6">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-open-sauce-bold text-[#26472B]">Payout Reconciliation</h2>
+          <button onClick={onClose} className="text-[#909090] hover:text-[#484848] cursor-pointer text-xl leading-none">&times;</button>
+        </div>
+        <div className="grid grid-cols-2 gap-3 mb-4">
+          <div>
+            <label className="block text-xs font-open-sauce-semibold text-[#26472B] mb-1.5">From</label>
+            <input type="date" value={from} onChange={(e) => setFrom(e.target.value)}
+              className="w-full border border-[#E5F1E2] rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#45A735]/30 focus:border-[#45A735] focus:outline-none" />
+          </div>
+          <div>
+            <label className="block text-xs font-open-sauce-semibold text-[#26472B] mb-1.5">To</label>
+            <input type="date" value={to} onChange={(e) => setTo(e.target.value)}
+              className="w-full border border-[#E5F1E2] rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#45A735]/30 focus:border-[#45A735] focus:outline-none" />
+          </div>
+        </div>
+        <Button onClick={fetchReport} variant="primary" disabled={loading} className="w-full mb-4">
+          {loading ? 'Generating…' : 'Run Report'}
+        </Button>
+        {data && (
+          <div className="bg-[#F7FBF6] border border-[#E5F1E2] rounded-lg p-4 space-y-2 max-h-72 overflow-auto">
+            <pre className="text-xs text-[#484848] font-mono whitespace-pre-wrap break-words">
+              {JSON.stringify(data, null, 2)}
+            </pre>
+          </div>
+        )}
+        <div className="flex justify-end mt-4">
+          <Button variant="subtle" onClick={onClose}>Close</Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Mark Processed Modal ──────────────────────────────────────────────────────
 function MarkProcessedModal({ payout, onClose, onProcessed }) {
   const [utr, setUtr] = useState('');
@@ -132,6 +289,8 @@ export default function AdminOpsPayoutsPage() {
   const [error, setError] = useState(null);
   const [tab, setTab] = useState('All');
   const [processing, setProcessing] = useState(null); // payout being acted on
+  const [showCompute, setShowCompute] = useState(false);
+  const [showRecon, setShowRecon] = useState(false);
 
   const load = useCallback(() => {
     setError(null);
@@ -249,6 +408,12 @@ export default function AdminOpsPayoutsPage() {
       <PageHeader
         title="Payouts"
         subtitle="Manage resource and PM payouts"
+        action={
+          <div className="flex flex-wrap gap-2">
+            <Button variant="primary" size="sm" onClick={() => setShowCompute(true)}>+ Compute Payout</Button>
+            <Button variant="subtle" size="sm" onClick={() => setShowRecon(true)}>📊 Reconciliation</Button>
+          </div>
+        }
       />
 
       <div className="p-4 sm:p-8 space-y-6">
@@ -339,6 +504,17 @@ export default function AdminOpsPayoutsPage() {
           onProcessed={() => { setProcessing(null); load(); }}
         />
       )}
+
+      {/* Compute Payout Modal */}
+      {showCompute && (
+        <ComputePayoutModal
+          onClose={() => setShowCompute(false)}
+          onComputed={() => { setShowCompute(false); load(); }}
+        />
+      )}
+
+      {/* Reconciliation Modal */}
+      {showRecon && <ReconciliationModal onClose={() => setShowRecon(false)} />}
     </div>
   );
 }
