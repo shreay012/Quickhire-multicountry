@@ -246,6 +246,24 @@ const Footer = () => {
                 </Typography>
               </Link>
               <Link
+                href="/privacy-policy"
+                style={{ textDecoration: "none" }}
+              >
+                <Typography
+                  sx={{
+                    fontSize: { xs: "12px", md: "15px" },
+                    fontWeight: 400,
+                    color: "#322C42",
+                    textDecoration: "none",
+                    "&:hover": {
+                      color: "var(--quickhire-green)",
+                    },
+                  }}
+                >
+                  {t("privacyPolicy")}
+                </Typography>
+              </Link>
+              <Link
                 href="/cancellation-and-refund-policy"
                 style={{ textDecoration: "none" }}
               >

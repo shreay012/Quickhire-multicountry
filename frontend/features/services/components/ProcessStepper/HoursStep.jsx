@@ -54,12 +54,34 @@ const HoursStep = ({ selectedService: selectedServiceProp, serviceId } = {}) => 
   const serviceDetailsRedux = useSelector((state) => state.booking?.serviceDetails);
   const isAuthenticated = useSelector((state) => state.auth?.isAuthenticated);
   const activeService = selectedServiceProp || selectedServiceRedux || serviceDetailsRedux;
-  const hourlyRate =
-    activeService?.pricing?.hourly ||
-    activeService?.hourlyRate ||
-    1250; // safe fallback
 
-  // If no pricing data yet, fetch service directly
+  // Country-specific price from the geo_pricing collection (overrides the
+  // embedded service.hourlyRate for customers outside the default country).
+  const [geoPrice, setGeoPrice] = useState(null);
+
+  useEffect(() => {
+    const id = serviceId || selectedServiceProp?._id || selectedServiceRedux?._id;
+    if (!id) return;
+
+    // Fetch country-specific override — falls back to service default if none set
+    import('@/lib/axios/axiosInstance').then(({ default: axiosInstance }) => {
+      axiosInstance.get(`/geo-pricing/price/${id}`)
+        .then((r) => {
+          const price = r.data?.data?.basePrice || r.data?.basePrice;
+          if (price && price > 0) setGeoPrice(price);
+        })
+        .catch(() => {}); // silently fall back to service default
+    });
+  }, [serviceId, selectedServiceProp?._id, selectedServiceRedux?._id]);
+
+  // Priority: geo override > service.hourlyRate > service.pricing.hourly > safe fallback
+  const hourlyRate =
+    geoPrice ||
+    activeService?.hourlyRate ||
+    activeService?.pricing?.hourly ||
+    1250;
+
+  // If no service data yet, fetch it directly
   useEffect(() => {
     const id = serviceId || selectedServiceProp?._id || selectedServiceRedux?._id;
     if (id && !activeService?.pricing?.hourly && !activeService?.hourlyRate) {

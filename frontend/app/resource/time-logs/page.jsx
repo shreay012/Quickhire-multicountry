@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import staffApi from '@/lib/axios/staffApi';
+import { showError, showSuccess } from '@/lib/utils/toast';
 import { PageHeader, Table, Spinner, ErrorBox, Button } from '@/components/staff/ui';
 
 export default function ResourceTimeLogsPage() {
@@ -31,9 +32,10 @@ export default function ResourceTimeLogsPage() {
         note,
       });
       setBookingId(''); setHours(''); setNote('');
+      showSuccess('Time logged successfully!');
       load();
     } catch (err) {
-      alert(err?.response?.data?.error?.message || 'Failed to log time');
+      showError(err?.response?.data?.error?.message || 'Failed to log time');
     } finally { setBusy(false); }
   };
 

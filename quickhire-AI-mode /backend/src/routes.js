@@ -30,6 +30,7 @@ import reviewRoutes from './modules/review/review.routes.js';
 import customerRoutes from './modules/customer/customer.routes.js';
 import chatbotRoutes from './modules/chatbot/chatbot.routes.js';
 import searchRoutes from './modules/search/search.routes.js';
+import legalRoutes from './modules/legal/legal.routes.js';
 
 const r = Router();
 r.use('/auth', authRoutes);
@@ -66,5 +67,6 @@ r.use('/reviews', reviewRoutes);
 r.use('/customer', customerRoutes);
 r.use('/chatbot', chatbotRoutes);
 r.use('/search', searchRoutes);
+r.use('/legal', legalRoutes);
 
 export default r;

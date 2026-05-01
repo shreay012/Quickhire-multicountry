@@ -28,6 +28,20 @@ import {
 } from "@/lib/redux/slices/userProfileSlice/userProfileSlice";
 import { fetchDashboardStats } from "@/lib/redux/slices/dashboardSlice";
 import { fetchCustomerBookings, createJob, updateJob, setSelectedJobId, fetchJobById as fetchJobByIdBooking } from "@/lib/redux/slices/bookingSlice/bookingSlice";
+import { selectCurrency, selectTaxInfo, selectCountry } from "@/lib/redux/slices/regionSlice/regionSlice";
+
+/* ── Currency helpers ────────────────────────────────────────────────────── */
+const CURRENCY_SYMBOLS = { INR: '₹', USD: '$', AED: 'د.إ', EUR: '€', AUD: 'A$', GBP: '£', SGD: 'S$', CAD: 'C$' };
+const CURRENCY_LOCALES = { INR: 'en-IN', USD: 'en-US', AED: 'ar-AE', EUR: 'de-DE', AUD: 'en-AU', GBP: 'en-GB', SGD: 'en-SG', CAD: 'en-CA' };
+
+function currencySymbol(currency) {
+  return CURRENCY_SYMBOLS[currency] || currency || '₹';
+}
+
+function formatMoney(amount, currency) {
+  const locale = CURRENCY_LOCALES[currency] || 'en-IN';
+  return Number(amount || 0).toLocaleString(locale, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
 
 const PaymentStep = () => {
   const {
@@ -44,6 +58,14 @@ const PaymentStep = () => {
   const t = useTranslations("paymentStep");
   const tCommon = useTranslations("common");
   const tDetails = useTranslations("detailsStep");
+
+  // Country-aware pricing
+  const currency = useSelector(selectCurrency);          // e.g. 'INR', 'AED', 'EUR'
+  const { taxRate, taxLabel } = useSelector(selectTaxInfo); // e.g. { taxRate: 0.18, taxLabel: 'GST' }
+  const country = useSelector(selectCountry);             // e.g. 'IN', 'AE'
+  const sym = currencySymbol(currency);
+  const taxPercent = Math.round((taxRate || 0.18) * 100); // e.g. 18, 5, 19
+
   const [pricingData, setPricingData] = useState(null);
   const [bookingData, setBookingData] = useState(null);
 
@@ -207,106 +229,120 @@ const PaymentStep = () => {
   const total = pricingData?.data?.totalPricing?.totalPriceWithGst || 0;
   const discountAmount = pricingData?.data?.totalPricing?.discountAmount || 0;
 
-  // Handle Complete Payment - Razorpay Integration
-  const handleCompletePayment = async () => {
-    if (!termsAccepted) return;
+  // ── Gateway helpers ───────────────────────────────────────────────
 
-    // Check if user is authenticated
-    const token = localStorage.getItem("token");
-    if (!token) {
-      setShowLoginModal(true);
-      return;
-    }
+  function _clearPaymentStorage() {
+    localStorage.removeItem("_current_job_id");
+    localStorage.removeItem("_pricing_data");
+  }
 
-    // Get jobId from query params (should be set after login)
-    const currentJobId = normalizeJobId(searchParams.get("jobId"));
-    if (!currentJobId) {
-      showError("No job ID found. Please try again.");
-      return;
-    }
+  function _onPaymentSuccess(jobId) {
+    _clearPaymentStorage();
+    router.push(`/payment-success?jobId=${jobId}`);
+  }
 
-    try {
-      setIsProcessingPayment(true);
-
-      console.log("💳 Initiating payment for job ID:", currentJobId);
-      console.log("💵 Payment amount:", total);
-
-      // Create Razorpay order
-      const orderResponse = await paymentService.createOrder(currentJobId, total);
-      console.log("✅ Order created:", orderResponse.data);
-
-      const paymentData = orderResponse.data.data;
-
-      // Configure Razorpay options
-      const razorpayOptions = {
-        key: paymentData.keyId,
-        amount: paymentData.amount * 100,
-        currency: paymentData.currency,
+  async function _handleRazorpay(paymentData, currentJobId) {
+    return new Promise((resolve, reject) => {
+      const options = {
+        key: paymentData.keyId || paymentData.key,
+        amount: paymentData.amount,      // already in paise from backend
+        currency: paymentData.currency || "INR",
         name: "QuickHire",
         description: "Service Booking Payment",
-        order_id: paymentData.razorpayOrderId,
-
-        handler: async function (response) {
-          console.log("💰 Payment successful:", response);
-
+        order_id: paymentData.razorpayOrderId || paymentData.orderId,
+        handler: async (response) => {
           try {
-            // Check payment status
-            const statusResponse = await paymentService.getPaymentStatus(
-              paymentData.paymentId,
-            );
-            console.log("📊 Payment status:", statusResponse.data);
-
-            // Clear payment data from localStorage
-            localStorage.removeItem("_current_job_id");
-            localStorage.removeItem("_pricing_data");
-            console.log("🧹 Cleared payment data from localStorage");
-
-            // Redirect to payment success, carry jobId so we can go to workspace.
-            router.push(`/payment-success?jobId=${currentJobId}`);
-
-            // setShowPaymentSuccess(true);
-            // setIsProcessingPayment(false);
-          } catch (error) {
-            console.error("❌ Error checking payment status:", error);
-            setIsProcessingPayment(false);
-            showError("Payment completed but status check failed. Please contact support.");
+            await paymentService.verifyPayment({
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_order_id:   response.razorpay_order_id,
+              razorpay_signature:  response.razorpay_signature,
+            });
+          } catch (_) {
+            // Verification failure is non-fatal — webhook will confirm
           }
+          resolve();
         },
-
         prefill: {
           name: paymentData.userDetails?.name || "",
           email: paymentData.userDetails?.email || "",
           contact: paymentData.userDetails?.mobile || "",
         },
-
-        notes: {
-          jobId: jobId,
-          bookingType: paymentData.bookingType,
-          gstNumber: gstNumber || "N/A",
-        },
-
-        theme: {
-          color: "#45A735",
-        },
-
-        modal: {
-          ondismiss: function () {
-            console.log("⚠️ Payment cancelled by user");
-            setIsProcessingPayment(false);
-          },
-        },
+        notes: { jobId: currentJobId, gstNumber: gstNumber || "N/A" },
+        theme: { color: "#45A735" },
+        modal: { ondismiss: () => reject(new Error("dismissed")) },
       };
+      if (!window.Razorpay) { reject(new Error("Razorpay SDK not loaded")); return; }
+      const rzp = new window.Razorpay(options);
+      rzp.on("payment.failed", (resp) =>
+        reject(new Error(resp?.error?.description || "Payment failed"))
+      );
+      rzp.open();
+    });
+  }
 
-      // Open Razorpay checkout
-      if (window.Razorpay) {
-        const razorpay = new window.Razorpay(razorpayOptions);
-        razorpay.open();
-      } else {
-        throw new Error("Razorpay SDK not loaded");
+  async function _handleStripe(paymentData, currentJobId) {
+    const key = paymentData.stripePublishableKey ||
+      process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY;
+    if (!key) throw new Error("Stripe publishable key not configured");
+    const { loadStripe } = await import("@stripe/stripe-js");
+    const stripe = await loadStripe(key);
+    if (!stripe) throw new Error("Failed to load Stripe.js");
+    const { error: stripeErr } = await stripe.confirmPayment({
+      clientSecret: paymentData.clientSecret,
+      confirmParams: {
+        return_url: `${window.location.origin}/payment-success?jobId=${currentJobId}`,
+      },
+      redirect: "if_required",
+    });
+    if (stripeErr) throw new Error(stripeErr.message);
+    await paymentService.confirmStripePayment(paymentData.orderId);
+  }
+
+  // Handle Complete Payment — multi-gateway (mock / razorpay / stripe)
+  const handleCompletePayment = async () => {
+    if (!termsAccepted) return;
+
+    const token = localStorage.getItem("token");
+    if (!token) { setShowLoginModal(true); return; }
+
+    const currentJobId = normalizeJobId(searchParams.get("jobId"));
+    if (!currentJobId) { showError("No job ID found. Please try again."); return; }
+
+    try {
+      setIsProcessingPayment(true);
+
+      const orderResponse = await paymentService.createOrder(currentJobId, total);
+      const paymentData = orderResponse.data?.data || orderResponse.data;
+      const gateway = paymentData.gateway || "razorpay";
+
+      switch (gateway) {
+        case "mock":
+          // Backend already confirmed mock payment — just navigate
+          await new Promise((r) => setTimeout(r, 400));
+          break;
+        case "razorpay":
+          await _handleRazorpay(paymentData, currentJobId);
+          break;
+        case "stripe":
+          await _handleStripe(paymentData, currentJobId);
+          break;
+        default:
+          throw new Error(`Unknown gateway: ${gateway}`);
       }
+
+      _onPaymentSuccess(currentJobId);
     } catch (error) {
-      console.error("❌ Error creating payment order:", error);
-      showError("Failed to initiate payment. Please try again.");
+      if (error?.message === "dismissed") {
+        // User closed the modal — not an error
+        setIsProcessingPayment(false);
+        return;
+      }
+      console.error("❌ Payment error:", error);
+      showError(
+        error?.response?.data?.message ||
+        error?.message ||
+        "Failed to initiate payment. Please try again."
+      );
       setIsProcessingPayment(false);
     }
   };
@@ -775,8 +811,7 @@ const PaymentStep = () => {
                     lineHeight: 1.4,
                   }}
                 >
-                  {service.hours || 0} hours / ₹
-                  {service.basePrice.toLocaleString("en-IN")}
+                  {service.hours || 0} hours / {sym}{formatMoney(service.basePrice, currency)}
                 </Typography>
               </Box>
 
@@ -955,11 +990,7 @@ const PaymentStep = () => {
               color: "#6B7280",
             }}
           >
-            ₹
-            {subtotal.toLocaleString("en-IN", {
-              minimumFractionDigits: 2,
-              maximumFractionDigits: 2,
-            })}
+            {sym}{formatMoney(subtotal, currency)}
           </Typography>
         </Box>
 
@@ -989,11 +1020,7 @@ const PaymentStep = () => {
                 color: "#45A735",
               }}
             >
-              -₹
-              {discountAmount.toLocaleString("en-IN", {
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2,
-              })}
+              -{sym}{formatMoney(discountAmount, currency)}
             </Typography>
           </Box>
         )}
@@ -1016,7 +1043,7 @@ const PaymentStep = () => {
               color: "#6B7280",
             }}
           >
-            {t('gstWithRate', { rate: 18 })}
+            {taxLabel} @ {taxPercent}%
           </Typography>
           <Typography
             sx={{
@@ -1025,11 +1052,7 @@ const PaymentStep = () => {
               color: "#6B7280",
             }}
           >
-            ₹
-            {gstAmount.toLocaleString("en-IN", {
-              minimumFractionDigits: 2,
-              maximumFractionDigits: 2,
-            })}
+            {sym}{formatMoney(gstAmount, currency)}
           </Typography>
         </Box>
 
@@ -1057,11 +1080,7 @@ const PaymentStep = () => {
               color: "#1F2937",
             }}
           >
-            ₹
-            {total.toLocaleString("en-IN", {
-              minimumFractionDigits: 2,
-              maximumFractionDigits: 2,
-            })}
+            {sym}{formatMoney(total, currency)}
           </Typography>
         </Box>
       </Box>

@@ -12,6 +12,7 @@ import dashboardReducer from "../slices/dashboardSlice/dashboardSlice";
 import notificationsReducer from '../slices/notificationsSlice/notificationsSlice';
 import cartReducer from '../slices/cartSlice/cartSlice';
 import regionReducer from '../slices/regionSlice/regionSlice';
+import chatReducer from '../slices/chatSlice/chatSlice';
 import { mockPreloadedState } from './mockPreloadedState';
 
 export const store = configureStore({
@@ -29,6 +30,7 @@ export const store = configureStore({
     notifications: notificationsReducer,
     cart: cartReducer,
     region: regionReducer,
+    chat: chatReducer,
   },
   preloadedState: mockPreloadedState,
   middleware: (getDefaultMiddleware) =>

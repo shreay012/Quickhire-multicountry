@@ -1,5 +1,4 @@
 "use client";
-"use client";
 
 import { useCallback, useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
@@ -15,6 +14,8 @@ import { ticketService } from "@/lib/services/ticketApi";
 import chatSocketService from "@/lib/services/chatSocketService";
 import axios from "@/lib/axios/axiosInstance";
 import { getCurrentUser } from "@/lib/utils/userHelpers";
+import { showSuccess } from "@/lib/utils/toast";
+import ErrorBoundary from "@/components/common/ErrorBoundary";
 
 function fmtDate(value) {
   if (!value) return "—";
@@ -153,7 +154,7 @@ const BookingWorkspacePage = () => {
         bookingId: rawId,
       });
       setIsReportModalOpen(false);
-      alert("Issue reported successfully! Our team will review it shortly.");
+      showSuccess("Issue reported successfully! Our team will review it shortly.");
     } catch (e) {
       setReportErrorMessage(
         e?.response?.data?.message || "Failed to report issue. Please try again.",
@@ -649,17 +650,19 @@ const BookingWorkspacePage = () => {
               {activeTab === "chat" ? (
                 <div className="h-full flex flex-col">
                   <div className="flex-1 overflow-hidden px-3 md:px-4">
-                    <ChatPanel
-                      projectTitle={bookingData.resource}
-                      serviceInfo={`${bookingData.bookingId} | ${bookingData.duration}`}
-                      bookingId={bookingData.bookingId}
-                      adminId={bookingData.projectManagerId || ""}
-                      serviceId={bookingData.serviceId}
-                      hourlyRate={booking?.pricing?.hourlyRate ? `₹${booking.pricing.hourlyRate}/hr` : ""}
-                      currentUserId={currentUserId}
-                      authToken={authToken}
-                      baseUrl={process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:4000"}
-                    />
+                    <ErrorBoundary>
+                      <ChatPanel
+                        projectTitle={bookingData.resource}
+                        serviceInfo={`${bookingData.bookingId} | ${bookingData.duration}`}
+                        bookingId={bookingData.bookingId}
+                        adminId={bookingData.projectManagerId || ""}
+                        serviceId={bookingData.serviceId}
+                        hourlyRate={booking?.pricing?.hourlyRate || ""}
+                        currentUserId={currentUserId}
+                        authToken={authToken}
+                        baseUrl={process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:4000"}
+                      />
+                    </ErrorBoundary>
                   </div>
                 </div>
               ) : (

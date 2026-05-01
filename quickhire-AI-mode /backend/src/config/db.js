@@ -1,6 +1,7 @@
 import { MongoClient } from 'mongodb';
 import { env } from './env.js';
 import { logger } from './logger.js';
+import { buildCountrySeedDocuments } from './country.config.js';
 
 let client;
 let db;
@@ -13,10 +14,10 @@ export async function connectDb() {
     minPoolSize: 5,
     maxIdleTimeMS: 60_000,
     waitQueueTimeoutMS: 5_000,
-    serverSelectionTimeoutMS: env.NODE_ENV === 'development' ? 2_000 : 10_000,
+    serverSelectionTimeoutMS: 10_000,  // 10s for both dev & prod — 2s was too tight
     heartbeatFrequencyMS: 10_000,
     socketTimeoutMS: 45_000,
-    connectTimeoutMS: env.NODE_ENV === 'development' ? 2_000 : 10_000,
+    connectTimeoutMS: 10_000,
     compressors: ['zlib'],
   });
   try {
@@ -36,6 +37,7 @@ export async function connectDb() {
   }
 
   await ensureIndexes(db);
+  await seedCountries(db);  // upsert canonical country configs on every boot
   return db;
 }
 
@@ -46,6 +48,29 @@ export function getDb() {
 
 export async function closeDb() {
   if (client) await client.close();
+}
+
+/**
+ * Upsert canonical COUNTRY_CONFIG into the `countries` collection on every boot.
+ * Safe to run repeatedly — uses replaceOne with upsert; never deletes existing records.
+ * DB records win at runtime (geo middleware merges DB on top of canonical config).
+ */
+async function seedCountries(db) {
+  try {
+    const col = db.collection('countries');
+    const docs = buildCountrySeedDocuments();
+    const ops = docs.map((doc) => ({
+      replaceOne: { filter: { code: doc.code }, replacement: doc, upsert: true },
+    }));
+    const result = await col.bulkWrite(ops, { ordered: false });
+    logger.info(
+      { upserted: result.upsertedCount, modified: result.modifiedCount },
+      'countries collection synced with COUNTRY_CONFIG',
+    );
+  } catch (err) {
+    // Non-fatal: geo middleware falls back to in-memory COUNTRY_CONFIG
+    logger.warn({ err: err.message }, 'countries seed failed — geo will use in-memory defaults');
+  }
 }
 
 async function ensureIndexes(db) {
@@ -109,5 +134,48 @@ async function ensureIndexes(db) {
       { title: 'text', content: 'text', tags: 'text' },
       { weights: { title: 10, tags: 5, content: 1 }, name: 'articles_text' },
     ),
+
+    // ── Multi-country indexes (Phase 7 — Global Platform) ──────────────
+    // Users: country-scoped queries and analytics
+    db.collection('users').createIndex({ country: 1, role: 1, createdAt: -1 }),
+    db.collection('users').createIndex({ country: 1, 'meta.status': 1 }),
+
+    // Services: country-scoped catalogue browsing
+    db.collection('services').createIndex({ country: 1, active: 1, category: 1 }),
+    db.collection('services').createIndex({ country: 1, active: 1, createdAt: -1 }),
+
+    // Bookings: country-scoped analytics and ops queries
+    db.collection('bookings').createIndex({ country: 1, status: 1, createdAt: -1 }),
+
+    // Payments: booking lookup + country analytics + webhook dedup
+    db.collection('payments').createIndex({ bookingId: 1 }),
+    db.collection('payments').createIndex({ country: 1, status: 1, createdAt: -1 }),
+    db.collection('payments').createIndex({ 'rawWebhookEvents.id': 1 }, { sparse: true }),
+
+    // Countries collection: config lookups
+    db.collection('countries').createIndex({ code: 1 }, { unique: true }),
+    db.collection('countries').createIndex({ active: 1 }),
+
+    // Legal document system
+    db.collection('legal_documents').createIndex({ countryCode: 1, docType: 1, status: 1 }),
+    db.collection('legal_documents').createIndex({ countryCode: 1, docType: 1, version: 1 }, { unique: true }),
+    db.collection('legal_documents').createIndex({ status: 1, publishedAt: -1 }),
+    db.collection('legal_acceptances').createIndex({ userId: 1, docType: 1, version: 1, countryCode: 1 }),
+    db.collection('legal_acceptances').createIndex({ userId: 1, acceptedAt: -1 }),
+
+    // Promo: country-scoped code lookups + fraud guard
+    db.collection('promo_codes').createIndex({ code: 1 }, { unique: true }),
+    db.collection('promo_codes').createIndex({ active: 1, validFrom: 1, validTo: 1 }),
+    db.collection('promo_codes').createIndex({ 'scope.country': 1, active: 1 }),
+    db.collection('promo_redemptions').createIndex({ codeId: 1, userId: 1 }),  // per-user limit check
+
+    // Refunds (created by analytics.handler)
+    db.collection('refunds').createIndex({ bookingId: 1 }, { unique: true, sparse: true }),
+    db.collection('refunds').createIndex({ paymentId: 1 }),
+    db.collection('refunds').createIndex({ status: 1, createdAt: -1 }),
+    db.collection('refunds').createIndex({ country: 1, status: 1, createdAt: -1 }),
+
+    // FX rates (refreshed by analytics queue)
+    db.collection('fx_rates').createIndex({ _id: 1 }),
   ]);
 }

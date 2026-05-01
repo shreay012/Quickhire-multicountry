@@ -1,6 +1,8 @@
 import { initializeQueues, registerWorker, QUEUES } from './index.js';
 import { handleNotificationJob } from './notification.handler.js';
 import { handleLifecycleTick, scheduleLifecycleTick } from './lifecycle.handler.js';
+import { handleAnalyticsJob } from './analytics.handler.js';
+import { handleEmailJob } from './email.handler.js';
 import { logger } from '../config/logger.js';
 
 /**
@@ -29,6 +31,16 @@ export async function startQueueWorkers() {
     // Register lifecycle handler
     registerWorker(QUEUES.LIFECYCLE, handleLifecycleTick, {
       concurrency: 1, // Only 1 tick at a time (avoid concurrency issues)
+    });
+
+    // Register analytics handler (refunds, FX rate refresh, bulk ops)
+    registerWorker(QUEUES.ANALYTICS, handleAnalyticsJob, {
+      concurrency: 3, // 3 parallel analytics jobs (refunds can be slow)
+    });
+
+    // Register email handler (transactional emails via SES)
+    registerWorker(QUEUES.EMAILS, handleEmailJob, {
+      concurrency: 5, // 5 parallel email sends
     });
 
     // Schedule the recurring lifecycle tick
@@ -63,3 +75,5 @@ export async function stopQueueWorkers() {
 export { enqueueJob, getQueue, QUEUES } from './index.js';
 export { enqueueNotification, handleNotificationJob } from './notification.handler.js';
 export { handleLifecycleTick, scheduleLifecycleTick, getLifecycleStats } from './lifecycle.handler.js';
+export { handleAnalyticsJob } from './analytics.handler.js';
+export { handleEmailJob } from './email.handler.js';

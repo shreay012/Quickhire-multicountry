@@ -1,0 +1,41 @@
+# OS / editor junk
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# Claude Code local state
+.claude/settings.local.json
+.claude/settings.json
+.claude/worktrees/
+
+# Logs
+*.log
+backend.log
+frontend.log
+
+# Runtime data
+dump.rdb
+*.rdb
+
+# Secrets — NEVER commit
+.env
+.env.*
+!.env.example
+*.pem
+jwt-keys.env
+jwt-private.pem
+jwt-public.pem
+render-env-vars.env
+render-paste.env
+
+# Node
+node_modules/
+
+# Build artifacts
+build/
+.next/
+.vercel/
+dist/
+out/
+coverage/

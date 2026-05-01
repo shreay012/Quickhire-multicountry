@@ -441,7 +441,12 @@
   },
   "aboutUs": {
     "whoWeServeTitle": "サービスを提供する対象",
-    "whoWeServeSubtitle": "QuickHireは、重要な成長期間と時間に敏感なイニシアチブのために専門的な技術人材を提供します。"
+    "whoWeServeSubtitle": "QuickHireは、重要な成長期間と時間に敏感なイニシアチブのために専門的な技術人材を提供します。",
+    "readySection": {
+      "title": "Ready to hire smarter?",
+      "subtitle": "Connect with a verified tech professional in 10 minutes.",
+      "cta": "Get Started Now"
+    }
   },
   "carousel": {
     "title": "混乱からテック人材選択へ - 遅延ゼロ。",
@@ -474,6 +479,7 @@
     "submit": "送信",
     "submitting": "送信中...",
     "successMsg": "メッセージが送信されました!すぐにご連絡いたします。",
+    "submitError": "Something went wrong. Please try again.",
     "getInTouch": "ご連絡ください",
     "getInTouchDesc": "これらのチャネルのいずれかから直接お問い合わせください",
     "phoneLabel": "電話",
@@ -692,5 +698,35 @@
     "subtitle": "構築または修正しようとしているものを教えてください。適切なエキスパートとマッチングします。",
     "cta": "適切なエキスパートを見つける",
     "ctaPlural": "適切なエキスパートを見つける"
+  },
+  "serviceHeader": {
+    "heading": "Get verified experts ready to start in",
+    "headingHighlight": "minutes",
+    "subheading": "Connect with top-tier professionals who can solve your challenges with speed and expertise.",
+    "feature1": "400+ Verified professionals",
+    "feature2": "Enterprise-grade security",
+    "feature3": "Transparent hourly pricing",
+    "feature4": "Dedicated project manager"
+  },
+  "serviceFaq": {
+    "headingPart1": "Frequently",
+    "headingHighlight": "Asked",
+    "headingPart2": "Questions",
+    "q1": "Why should I hire through QuickHire instead of freelancers or traditional hiring?",
+    "a1": "QuickHire offers vetted professionals, instant availability, dedicated project management, and guaranteed quality.",
+    "q2": "Can I extend the work if I need more time?",
+    "a2": "Yes, you can easily extend your engagement. Simply reach out to your dedicated TPM or use your dashboard to request an extension.",
+    "q3": "Can I hire multiple resources at once?",
+    "a3": "Absolutely! QuickHire allows you to scale your team by hiring multiple resources simultaneously."
+  },
+  "resource": {
+    "dashboard": {
+      "title": "マイワークスペース",
+      "subtitle": "アクティブおよび完了した作業",
+      "activeAssignments": "アクティブな割り当て",
+      "completed": "完了",
+      "hoursLogged": "記録時間",
+      "lifetime": "累計"
+    }
   }
 }

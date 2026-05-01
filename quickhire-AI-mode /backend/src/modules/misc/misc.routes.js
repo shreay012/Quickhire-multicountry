@@ -12,8 +12,8 @@ const contactSchema = z
   .object({
     name: z.string().min(2),
     email: z.string().email(),
-    phone_number: z.string().regex(/^\d{10}$/).optional(),
-    mobile: z.string().regex(/^\d{10}$/).optional(),
+    phone_number: z.string().regex(/^\+?[\d\s\-()+]{6,20}$/).optional(),
+    mobile: z.string().regex(/^\+?[\d\s\-()+]{6,20}$/).optional(),
     organization: z.string().max(200).optional().default(''),
     subject: z.string().max(200).optional().default(''),
     description: z.string().min(2).max(5000).optional(),

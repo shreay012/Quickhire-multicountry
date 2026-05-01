@@ -88,27 +88,18 @@ const SupportSection = () => {
     setIsSubmitting(true);
     
     try {
-      console.log('📝 Creating ticket:', {
-        serviceId: selectedBooking,
-        comment: noteText,
-      });
-
       // Create ticket via API
       const response = await axiosInstance.post('/tickets/ticket', {
         serviceId: selectedBooking,
         comment: noteText,
       });
 
-      console.log('✅ Ticket created successfully:', response.data);
-      
       // Show success modal
       setShowSuccess(true);
       
       // Refresh tickets list
       dispatch(fetchAllTickets({ page: 1, limit: 100 }));
     } catch (error) {
-      console.error('❌ Failed to create ticket:', error);
-      
       // Extract error message from API response
       if (error.response?.status === 400 && error.response?.data?.message) {
         setErrorMessage(error.response.data.message);

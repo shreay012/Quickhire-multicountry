@@ -49,7 +49,8 @@ r.post('/checkout-preview', validate(z.object({
   const country = req.geo?.country || 'IN';
   const currency = req.geo?.currency || 'INR';
 
-  const breakdown = buildInvoiceBreakdown({ subtotal: req.body.subtotal, discount: req.body.discount, country, currency });
+  // buildInvoiceBreakdown uses `code` (not `country`) for the country param
+  const breakdown = buildInvoiceBreakdown({ subtotal: req.body.subtotal, discount: req.body.discount, code: country, currency });
   const gateways = getGatewayOptions(country, breakdown.total);
 
   res.json({ success: true, data: { breakdown, gateways, country, currency } });

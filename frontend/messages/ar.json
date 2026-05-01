@@ -441,7 +441,12 @@
   },
   "aboutUs": {
     "whoWeServeTitle": "من نخدم",
-    "whoWeServeSubtitle": "QuickHire يقدم مواهب تقنية متخصصة لفترات النمو الحرجة والمبادرات الحساسة للوقت."
+    "whoWeServeSubtitle": "QuickHire يقدم مواهب تقنية متخصصة لفترات النمو الحرجة والمبادرات الحساسة للوقت.",
+    "readySection": {
+      "title": "Ready to hire smarter?",
+      "subtitle": "Connect with a verified tech professional in 10 minutes.",
+      "cta": "Get Started Now"
+    }
   },
   "carousel": {
     "title": "من الفوضى إلى اختيار المواهب التقنية - بدون تأخير.",
@@ -474,6 +479,7 @@
     "submit": "إرسال",
     "submitting": "جاري الإرسال...",
     "successMsg": "تم إرسال الرسالة! سنعود إليك قريبًا.",
+    "submitError": "Something went wrong. Please try again.",
     "getInTouch": "ابق على تواصل",
     "getInTouchDesc": "تواصل معنا مباشرة من خلال أي من هذه القنوات",
     "phoneLabel": "الهاتف",
@@ -692,5 +698,35 @@
     "subtitle": "أخبرنا بما تحاول بناءه أو إصلاحه، وسنقوم بمطابقتك مع الخبير المناسب.",
     "cta": "ابحث عن الخبير المناسب",
     "ctaPlural": "ابحث عن الخبراء المناسبين"
+  },
+  "serviceHeader": {
+    "heading": "Get verified experts ready to start in",
+    "headingHighlight": "minutes",
+    "subheading": "Connect with top-tier professionals who can solve your challenges with speed and expertise.",
+    "feature1": "400+ Verified professionals",
+    "feature2": "Enterprise-grade security",
+    "feature3": "Transparent hourly pricing",
+    "feature4": "Dedicated project manager"
+  },
+  "serviceFaq": {
+    "headingPart1": "Frequently",
+    "headingHighlight": "Asked",
+    "headingPart2": "Questions",
+    "q1": "Why should I hire through QuickHire instead of freelancers or traditional hiring?",
+    "a1": "QuickHire offers vetted professionals, instant availability, dedicated project management, and guaranteed quality.",
+    "q2": "Can I extend the work if I need more time?",
+    "a2": "Yes, you can easily extend your engagement. Simply reach out to your dedicated TPM or use your dashboard to request an extension.",
+    "q3": "Can I hire multiple resources at once?",
+    "a3": "Absolutely! QuickHire allows you to scale your team by hiring multiple resources simultaneously."
+  },
+  "resource": {
+    "dashboard": {
+      "title": "مساحة عملي",
+      "subtitle": "عملك النشط والمكتمل",
+      "activeAssignments": "المهام النشطة",
+      "completed": "المكتملة",
+      "hoursLogged": "الساعات المسجلة",
+      "lifetime": "مدى الحياة"
+    }
   }
 }

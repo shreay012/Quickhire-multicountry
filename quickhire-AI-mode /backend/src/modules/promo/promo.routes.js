@@ -325,11 +325,9 @@ r.post('/auto-apply', validate(z.object({
 
 /**
  * Redeem — called internally after successful payment to record usage.
- * This route is called by the booking service, not directly by the client.
+ * Restricted to admin/ops roles (BOOKING_WRITE) — never callable by end-users.
  */
-r.post('/redeem', asyncHandler(async (req, res) => {
-  // Internal route — only accessible from within the service (no external auth needed
-  // beyond the normal auth middleware which allows internal calls)
+r.post('/redeem', adminGuard, permGuard(PERMS.BOOKING_WRITE), asyncHandler(async (req, res) => {
   const { promoId, bookingId, userId, discount, currency = 'INR' } = req.body;
   if (!promoId || !bookingId || !userId) {
     throw new AppError('VALIDATION_ERROR', 'promoId, bookingId, userId required', 400);

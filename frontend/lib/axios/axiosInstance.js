@@ -36,25 +36,42 @@ export const userAuth = {
   clear: clearAuthStorage,
 };
 
-// --- Request: attach Bearer + handle FormData ---------------------------
+// --- Geo cookie reader (browser-safe) ------------------------------------
+function readCookie(name) {
+  if (typeof document === 'undefined') return null;
+  const match = document.cookie.match(new RegExp('(?:^|; )' + name + '=([^;]*)'));
+  return match ? decodeURIComponent(match[1]) : null;
+}
+
+// --- Request: attach Bearer + geo headers + handle FormData --------------
 axiosInstance.interceptors.request.use(
   (config) => {
+    config.headers = config.headers || {};
+
+    // Auth token
     const token = readToken();
     if (token) {
-      config.headers = config.headers || {};
       config.headers.Authorization = `Bearer ${token}`;
     }
+
+    // Geo headers — tells backend which country/locale the user is operating in.
+    // Backend geo middleware reads X-Country to override CF-IPCountry detection.
+    const country = readCookie('qh_country');
+    const locale  = readCookie('qh_locale');
+    if (country) config.headers['X-Country'] = country;
+    if (locale)  config.headers['X-Lang']    = locale;
+
+    // FormData: let browser set the correct multipart Content-Type boundary
     if (typeof FormData !== 'undefined' && config.data instanceof FormData) {
-      if (config.headers && 'Content-Type' in config.headers) {
-        delete config.headers['Content-Type'];
-      }
+      delete config.headers['Content-Type'];
     }
+
     return config;
   },
   (error) => Promise.reject(error),
 );
 
-// --- Response: redirect to /login on 401 (except on public routes) ------
+// --- Response: i18n flatten + 401 redirect + 429 rate-limit handling -----
 const PUBLIC_PREFIXES = [
   '/login',
   '/about-us',
@@ -70,35 +87,93 @@ const PUBLIC_PREFIXES = [
   '/service-details',
 ];
 
+/** Pending requests waiting for a token refresh */
+let _refreshing = false;
+let _refreshQueue = [];
+
+function _processQueue(err, token) {
+  _refreshQueue.forEach((cb) => (err ? cb.reject(err) : cb.resolve(token)));
+  _refreshQueue = [];
+}
+
+function readRefreshToken() {
+  if (typeof window === 'undefined') return null;
+  return window.localStorage.getItem('refreshToken') || null;
+}
+
 axiosInstance.interceptors.response.use(
   (response) => {
-    // Flatten any i18n-shaped objects in the payload to the active locale
-    // so React components can render fields like service.name directly.
+    // Flatten i18n-shaped objects to the active locale
     try {
       if (response && response.data != null && typeof response.data === 'object') {
         response.data = flattenI18nDeep(response.data, readActiveLocale());
       }
     } catch {
-      // Best-effort — never let normalization break a successful response.
+      // Best-effort — never let normalisation break a successful response.
     }
     return response;
   },
-  (error) => {
+  async (error) => {
     const status = error?.response?.status;
-    if (status === 401 && typeof window !== 'undefined') {
+    const originalReq = error?.config;
+
+    // ── 401: try silent token refresh, then redirect ─────────────────────
+    if (status === 401 && typeof window !== 'undefined' && !originalReq?._retry) {
+      const refreshToken = readRefreshToken();
+
+      if (refreshToken) {
+        if (_refreshing) {
+          // Queue this request until the refresh resolves
+          return new Promise((resolve, reject) => {
+            _refreshQueue.push({ resolve, reject });
+          })
+            .then((token) => {
+              originalReq.headers.Authorization = `Bearer ${token}`;
+              return axiosInstance(originalReq);
+            })
+            .catch((err) => Promise.reject(err));
+        }
+
+        originalReq._retry = true;
+        _refreshing = true;
+
+        try {
+          const res = await axiosInstance.post('/auth/refresh', { refreshToken });
+          const newToken = res.data?.data?.accessToken || res.data?.token;
+          if (newToken) {
+            window.localStorage.setItem('token', newToken);
+            axiosInstance.defaults.headers.common.Authorization = `Bearer ${newToken}`;
+            originalReq.headers.Authorization = `Bearer ${newToken}`;
+            _processQueue(null, newToken);
+            return axiosInstance(originalReq);
+          }
+        } catch (_) {
+          _processQueue(error, null);
+        } finally {
+          _refreshing = false;
+        }
+      }
+
+      // Refresh failed or no refresh token → redirect protected pages
       const path = window.location.pathname || '/';
       const isPublic =
         path === '/' || PUBLIC_PREFIXES.some((p) => path === p || path.startsWith(p + '/'));
-
-      // On protected pages: clear auth and redirect to login
-      // On public/booking pages: do NOT clear auth or redirect —
-      // the booking flow handles login at step 4 (DetailsStep)
       if (!isPublic) {
         clearAuthStorage();
         window.location.replace(`/login?next=${encodeURIComponent(path)}`);
       }
-      // Public page 401s are silently rejected — caller handles the error
     }
+
+    // ── 429: rate-limited — fire a toast warning (non-blocking) ─────────
+    if (status === 429 && typeof window !== 'undefined') {
+      const retryAfter = error.response.headers?.['retry-after'];
+      const seconds = retryAfter ? parseInt(retryAfter, 10) : 30;
+      // Dynamically import toast to avoid SSR issues
+      import('@/lib/utils/toast').then(({ showWarning }) => {
+        showWarning(`Too many requests. Please wait ${seconds} seconds before trying again.`);
+      }).catch(() => {});
+    }
+
     return Promise.reject(error);
   },
 );

@@ -48,7 +48,6 @@ const Bottombutton = () => {
       );
       localStorage.setItem("_technologies_names", techNames);
 
-      console.log("Saved to localStorage:", {
         _service_id: selectedService._id,
         _service_name: selectedService.name,
         _selected_tech_ids: selectedTechnologies,
@@ -137,13 +136,11 @@ const Bottombutton = () => {
 
       try {
         setIsPricingLoading(true);
-        console.log("🚀 Calling Pricing API with payload:", pricingPayload);
 
         // Call pricing API using Redux
         const resultAction = await dispatch(fetchPricing(pricingPayload));
 
         if (fetchPricing.fulfilled.match(resultAction)) {
-          console.log("✅ Pricing API Success:", resultAction.payload);
 
           // Save booking data to localStorage
           if (selectedAssignment === "instant") {
@@ -180,20 +177,14 @@ const Bottombutton = () => {
             JSON.stringify(resultAction.payload),
           );
 
-          console.log("💾 Booking Data Saved");
 
           if (selectedAssignment === "instant") {
-            console.log("⚡ Booking Type: Instant");
-            console.log("📅 Date: Current (Instant Booking)");
             if (selectedSlotDetails) {
-              console.log(
                 "⏰ Assigned Time Slot:",
                 `${selectedSlotDetails.start} - ${selectedSlotDetails.end}`,
               );
             }
           } else {
-            console.log("📅 Date:", selectedDate.toLocaleDateString());
-            console.log(
               "⏰ Time:",
               `${selectedSlotDetails.start} - ${selectedSlotDetails.end}`,
             );

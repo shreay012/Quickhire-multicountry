@@ -8,37 +8,21 @@ import {
   Typography,
 } from "@mui/material";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
+import { useTranslations } from "next-intl";
 
 const ServiceFaq = ({ serviceData, isLoading }) => {
+  const t = useTranslations("serviceFaq");
   const [expanded, setExpanded] = useState(false);
-
-  console.log("ServiceFaq serviceData:", serviceData);
 
   const handleChange = (panel) => (event, isExpanded) => {
     setExpanded(isExpanded ? panel : false);
   };
 
-  // Static fallback FAQs
+  // Static fallback FAQs (from translations so they can be localized)
   const staticFaqs = [
-    {
-      id: "panel1",
-      question:
-        "Why should I hire through QuickHire instead of freelancers or traditional hiring?",
-      answer:
-        "QuickHire offers vetted professionals, instant availability, dedicated project management, and guaranteed quality. Unlike freelancers, our experts are pre-screened and managed, ensuring reliability and accountability. Compared to traditional hiring, we eliminate lengthy recruitment processes and provide immediate access to skilled talent.",
-    },
-    {
-      id: "panel2",
-      question: "Can I extend the work if I need more time?",
-      answer:
-        "Yes, you can easily extend your engagement with our experts. Simply reach out to your dedicated TPM (Technical Project Manager) or use your dashboard to request an extension. We offer flexible engagement options to accommodate your project needs and timeline changes.",
-    },
-    {
-      id: "panel3",
-      question: "Can I hire multiple resources at once?",
-      answer:
-        "Absolutely! QuickHire allows you to scale your team by hiring multiple resources simultaneously. Whether you need a full development team, designers, or specialists across different domains, we can provide coordinated resources that work together seamlessly on your project.",
-    },
+    { id: "panel1", question: t("q1"), answer: t("a1") },
+    { id: "panel2", question: t("q2"), answer: t("a2") },
+    { id: "panel3", question: t("q3"), answer: t("a3") },
   ];
 
   // Get FAQs from API or use static fallback if empty
@@ -71,7 +55,7 @@ const ServiceFaq = ({ serviceData, isLoading }) => {
               color: "#374151",
             }}
           >
-            Frequently{" "}
+            {t("headingPart1")}{" "}
             <span
               style={{
                 color: "var(--quickhire-green)",
@@ -79,9 +63,9 @@ const ServiceFaq = ({ serviceData, isLoading }) => {
                 fontWeight: "var(--font-weight-700)",
               }}
             >
-              Asked
+              {t("headingHighlight")}
             </span>{" "}
-            Question
+            {t("headingPart2")}
           </Typography>
         </div>
 

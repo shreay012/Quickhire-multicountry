@@ -5,7 +5,6 @@ import { Box, Typography, Card } from "@mui/material";
 
 const BookingCard = ({ serviceData, isLoading }) => {
   // Receiving props for consistency, even if not using API data currently
-  console.log("BookingCard serviceData:", serviceData);
 
   const firstRowSteps = [
     {

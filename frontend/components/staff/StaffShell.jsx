@@ -62,21 +62,34 @@ export default function StaffShell({ role, links, children }) {
         </Link>
       </div>
 
-      <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
-        {links.map((l) => {
+      <nav className="flex-1 px-3 py-4 overflow-y-auto">
+        {links.map((l, i) => {
+          if (l.type === 'section') {
+            return (
+              <div key={`section-${i}`} className="px-3 pt-4 pb-1">
+                <span className="text-[10px] font-open-sauce-bold uppercase tracking-widest text-[#A0B8A0]">{l.label}</span>
+              </div>
+            );
+          }
           const active = pathname === l.href || (l.href !== `/${role}` && pathname.startsWith(l.href));
           return (
             <Link
               key={l.href}
               href={l.href}
-              className={`flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm font-open-sauce-medium transition-all duration-200 ${
+              className={`flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm font-open-sauce-medium transition-all duration-200 ${
                 active
                   ? 'bg-[#F2F9F1] text-[#26472B] border-l-[3px] border-[#45A735] pl-[calc(0.75rem-3px)]'
                   : 'text-[#636363] hover:bg-[#F7FBF6] hover:text-[#26472B]'
               }`}
             >
-              <span className={`w-1.5 h-1.5 rounded-full ${active ? 'bg-[#45A735]' : 'bg-[#D9D9D9]'}`} />
-              {l.label}
+              {l.icon ? (
+                <span className={`flex-shrink-0 w-4 h-4 ${active ? 'text-[#45A735]' : 'text-[#909090]'}`}>
+                  {l.icon}
+                </span>
+              ) : (
+                <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${active ? 'bg-[#45A735]' : 'bg-[#D9D9D9]'}`} />
+              )}
+              <span className="flex-1 truncate">{l.label}</span>
             </Link>
           );
         })}

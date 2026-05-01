@@ -24,7 +24,6 @@ const ServiceCardGridV3 = ({ service, backgroundColor, iconUrl }) => {
   const tServiceDetails = useTranslations('serviceDetails');
   const tCms = useCmsTranslate();
 
-  console.log("Rendering ServiceCardGridV3 for service:", service);
   const displayedTechs = service.technologies?.slice(0, 7) || [];
 
   const handleBookNow = () => {

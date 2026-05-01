@@ -48,7 +48,8 @@ export const ENDPOINTS = {
   },
   PAYMENT: {
     CREATE_ORDER: "/payments/create-order",
-    VERIFY: "/payments/verify",
+    VERIFY: "/payments/verify",                           // Razorpay signature verify
+    STRIPE_CONFIRM: "/payments/stripe/confirm",           // Stripe PaymentIntent confirm
     STATUS: (paymentId) => `/payments/status/${paymentId}`,
     HISTORY: "/payments/history",
     DOWNLOAD_INVOICE: (jobId) => `/payments/invoice/download/${jobId}`,

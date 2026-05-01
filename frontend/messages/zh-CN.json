@@ -441,7 +441,12 @@
   },
   "aboutUs": {
     "whoWeServeTitle": "我们服务的对象",
-    "whoWeServeSubtitle": "QuickHire 为关键增长期和时间敏感的举措提供专业的技术人才。"
+    "whoWeServeSubtitle": "QuickHire 为关键增长期和时间敏感的举措提供专业的技术人才。",
+    "readySection": {
+      "title": "Ready to hire smarter?",
+      "subtitle": "Connect with a verified tech professional in 10 minutes.",
+      "cta": "Get Started Now"
+    }
   },
   "carousel": {
     "title": "从混乱到科技人才选择 - 零延迟。",
@@ -474,6 +479,7 @@
     "submit": "提交",
     "submitting": "正在提交...",
     "successMsg": "消息已发送!我们会尽快回复您。",
+    "submitError": "Something went wrong. Please try again.",
     "getInTouch": "保持联系",
     "getInTouchDesc": "通过这些渠道之一直接联系我们",
     "phoneLabel": "电话",
@@ -692,5 +698,35 @@
     "subtitle": "告诉我们您要构建或修复什么,我们会为您匹配合适的专家。",
     "cta": "寻找合适的专家",
     "ctaPlural": "寻找合适的专家"
+  },
+  "serviceHeader": {
+    "heading": "Get verified experts ready to start in",
+    "headingHighlight": "minutes",
+    "subheading": "Connect with top-tier professionals who can solve your challenges with speed and expertise.",
+    "feature1": "400+ Verified professionals",
+    "feature2": "Enterprise-grade security",
+    "feature3": "Transparent hourly pricing",
+    "feature4": "Dedicated project manager"
+  },
+  "serviceFaq": {
+    "headingPart1": "Frequently",
+    "headingHighlight": "Asked",
+    "headingPart2": "Questions",
+    "q1": "Why should I hire through QuickHire instead of freelancers or traditional hiring?",
+    "a1": "QuickHire offers vetted professionals, instant availability, dedicated project management, and guaranteed quality.",
+    "q2": "Can I extend the work if I need more time?",
+    "a2": "Yes, you can easily extend your engagement. Simply reach out to your dedicated TPM or use your dashboard to request an extension.",
+    "q3": "Can I hire multiple resources at once?",
+    "a3": "Absolutely! QuickHire allows you to scale your team by hiring multiple resources simultaneously."
+  },
+  "resource": {
+    "dashboard": {
+      "title": "我的工作区",
+      "subtitle": "您的活跃和已完成工作",
+      "activeAssignments": "活跃任务",
+      "completed": "已完成",
+      "hoursLogged": "记录小时数",
+      "lifetime": "累计"
+    }
   }
 }

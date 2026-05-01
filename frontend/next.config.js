@@ -3,85 +3,70 @@ const createNextIntlPlugin = require('next-intl/plugin');
 const withNextIntl = createNextIntlPlugin('./i18n.js');
 
 const nextConfig = {
-  // NOTE: distDir changed to 'build' - this is NOT standard .next folder
-  // Remove this line if you want the standard .next output directory
+  // Build output directory (both dev cache and production build)
   distDir: 'build',
- 
+
   // Page extensions
   pageExtensions: ['js', 'jsx'],
-  
-  // Turbopack configuration
-  turbopack: {
-    // Set root directory to avoid lockfile conflicts
-    resolveAlias: {
-      '@': '.',
-    },
-    resolveExtensions: ['.jsx', '.js', '.json'],
-  },
-  
-  // Enable experimental features for better performance
+
+  // NOTE: No turbopack.resolveAlias needed — Next.js automatically picks up
+  // "@/*" path alias from jsconfig.json / tsconfig.json for both Turbopack and webpack.
+  // Adding resolveAlias: { '@': '.' } here would break ALL @-scoped npm packages
+  // (@mui/material, @emotion/react, @reduxjs/toolkit, etc.)
+
   experimental: {
-    optimizeCss: false, // Disable for now to avoid critters error
+    optimizeCss: false, // Disabled — avoids critters peer-dep error
     optimizePackageImports: ['@mui/material', '@mui/icons-material'],
   },
-  
-  // Image optimization configuration
+
+  // Image optimization
   images: {
     remotePatterns: [
-      {
-        protocol: 'https',
-        hostname: 'images.unsplash.com',
-        pathname: '/**',
-      },
-      {
-        protocol: 'https',
-        hostname: 'quickhire.services',
-        pathname: '/**',
-      },
-      {
-        protocol: 'https',
-        hostname: 'demo16.vcto.in',
-        pathname: '/**',
-      },
+      { protocol: 'https', hostname: 'images.unsplash.com', pathname: '/**' },
+      { protocol: 'https', hostname: 'quickhire.services', pathname: '/**' },
+      { protocol: 'https', hostname: 'demo16.vcto.in', pathname: '/**' },
     ],
     formats: ['image/webp', 'image/avif'],
     deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2048, 3840],
     imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
   },
-  
-  // Enable TypeScript path aliases
+
+  // MUI needs explicit transpilation to avoid CJS/ESM issues
   transpilePackages: ['@mui/material', '@mui/icons-material'],
-  
-  // Webpack configuration for MUI (fallback when turbopack disabled)
-  webpack: (config) => {
-    config.resolve.alias = {
-      ...config.resolve.alias,
-      '@': '.',
-    };
-    config.resolve.extensions = ['.js', '.jsx', '.json'];
-    return config;
-  },
-  
-  // Headers for caching and security
+
+  // Cache headers for static assets
   async headers() {
     return [
       {
         source: '/images/:path*',
-        headers: [
-          {
-            key: 'Cache-Control',
-            value: 'public, max-age=31536000, immutable',
-          },
-        ],
+        headers: [{ key: 'Cache-Control', value: 'public, max-age=31536000, immutable' }],
       },
       {
         source: '/_next/static/:path*',
-        headers: [
-          {
-            key: 'Cache-Control',
-            value: 'public, max-age=31536000, immutable',
-          },
-        ],
+        headers: [{ key: 'Cache-Control', value: 'public, max-age=31536000, immutable' }],
+      },
+    ];
+  },
+
+  // ── Country-prefix routing ────────────────────────────────────────────────
+  // When NEXT_PUBLIC_COUNTRY_PATH_ROUTING=true, proxy.js 307-redirects every
+  // path-less URL to its country-prefixed version (e.g. / → /ae/).
+  // These rewrites internally strip the prefix so the existing app/ routes
+  // handle the request — no route group duplication needed.
+  //
+  //   /ae/service-details/123  →  /service-details/123  (cookie=AE already set)
+  //   /ae                      →  /
+  async rewrites() {
+    return [
+      // Root: /ae → /
+      {
+        source: '/:country(in|ae|de|us|au)',
+        destination: '/',
+      },
+      // All sub-paths: /ae/service-details/123 → /service-details/123
+      {
+        source: '/:country(in|ae|de|us|au)/:path*',
+        destination: '/:path*',
       },
     ];
   },

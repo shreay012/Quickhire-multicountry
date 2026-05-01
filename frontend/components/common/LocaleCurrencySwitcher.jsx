@@ -58,7 +58,7 @@ export default function LocaleCurrencySwitcher({ compact = false, mobile = false
               key={l.code}
               type="button"
               onClick={() => onPickLocale(l.code)}
-              className={`flex items-center gap-2 px-2 py-2 rounded-md text-sm text-left ${
+              className={`flex items-center gap-2 px-2 py-2 rounded-md text-sm text-start ${
                 l.code === locale
                   ? "bg-[#45A735]/10 text-[#45A735] font-semibold"
                   : "text-gray-700 hover:bg-gray-50"
@@ -113,7 +113,7 @@ export default function LocaleCurrencySwitcher({ compact = false, mobile = false
       </button>
 
       {open && (
-        <div className="absolute right-0 mt-2 w-72 bg-white rounded-xl shadow-2xl border border-gray-200 py-3 z-50">
+        <div className="absolute end-0 mt-2 w-72 bg-white rounded-xl shadow-2xl border border-gray-200 py-3 z-50">
           <div className="px-4 pb-2">
             <div className="text-[11px] font-semibold uppercase tracking-wide text-gray-500 mb-2">
               Language
@@ -124,7 +124,7 @@ export default function LocaleCurrencySwitcher({ compact = false, mobile = false
                   key={l.code}
                   type="button"
                   onClick={() => onPickLocale(l.code)}
-                  className={`flex items-center gap-2 px-2 py-2 rounded-md text-sm text-left ${
+                  className={`flex items-center gap-2 px-2 py-2 rounded-md text-sm text-start ${
                     l.code === locale
                       ? "bg-[#45A735]/10 text-[#45A735] font-semibold"
                       : "text-gray-700 hover:bg-gray-50"

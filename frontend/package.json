@@ -20,6 +20,7 @@
     "@mui/icons-material": "^7.3.7",
     "@mui/material": "^7.3.7",
     "@reduxjs/toolkit": "^2.11.2",
+    "@stripe/stripe-js": "^4.10.0",
     "axios": "^1.13.6",
     "next": "16.1.6",
     "next-intl": "^4.9.1",

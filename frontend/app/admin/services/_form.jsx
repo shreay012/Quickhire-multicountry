@@ -1,0 +1,931 @@
+'use client';
+
+/**
+ * Shared service form — used by both /admin/services/new and /admin/services/[id]/edit.
+ * Renders as a full page (not a modal) with 5 tabs.
+ */
+
+import { useState, useEffect, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
+import staffApi from '@/lib/axios/staffApi';
+import { showError, showSuccess } from '@/lib/utils/toast';
+import { Spinner, ErrorBox } from '@/components/staff/ui';
+
+// ─── Constants ────────────────────────────────────────────────────────────────
+
+export const LANGUAGES = [
+  { code: 'en',    label: 'English'              },
+  { code: 'hi',    label: 'Hindi'                },
+  { code: 'de',    label: 'German'               },
+  { code: 'es',    label: 'Spanish'              },
+  { code: 'fr',    label: 'French'               },
+  { code: 'ar',    label: 'Arabic'               },
+  { code: 'ja',    label: 'Japanese'             },
+  { code: 'zh-CN', label: 'Chinese (Simplified)' },
+];
+
+const LANG_CODES = LANGUAGES.map((l) => l.code);
+
+const CURRENCY_SYMBOLS = {
+  INR: '₹', USD: '$', AED: 'د.إ', EUR: '€',
+  GBP: '£', AUD: 'A$', SGD: 'S$', CAD: 'C$',
+};
+
+const COUNTRIES = [
+  { code: 'IN', name: 'India',          currency: 'INR' },
+  { code: 'AE', name: 'UAE',            currency: 'AED' },
+  { code: 'DE', name: 'Germany',        currency: 'EUR' },
+  { code: 'US', name: 'United States',  currency: 'USD' },
+  { code: 'GB', name: 'United Kingdom', currency: 'GBP' },
+  { code: 'AU', name: 'Australia',      currency: 'AUD' },
+  { code: 'SG', name: 'Singapore',      currency: 'SGD' },
+  { code: 'CA', name: 'Canada',         currency: 'CAD' },
+];
+
+// Must match CATEGORY_ICON keys in lib/utils/serviceIcon.js so the icon resolves correctly
+const SERVICE_CATEGORIES = [
+  'AI Engineers',
+  'Backend Developers',
+  'Frontend Development',
+  'UI/UX Designer',
+  'IT Support',
+  'DevOps',
+  'Content Writing',
+  'Digital Marketing',
+  'Quality Assurance',
+  'Mobile App Development',
+  'Security Testing',
+  'Gen Ai Development',
+  'API Development',
+  'React.js Development',
+  'Website Design',
+  'Third Party Integration',
+  'CI/CD Pipeline Management',
+  'SEO Blog Writing',
+  'IT services',
+];
+
+const TABS = ['Basic Info', 'Translations', 'Technologies & Scope', 'FAQs', 'Geo Pricing'];
+
+const emptyLangMap = () => Object.fromEntries(LANG_CODES.map((c) => [c, '']));
+const emptyTech    = () => emptyLangMap();
+
+const emptyForm = () => ({
+  name:         emptyLangMap(),
+  description:  emptyLangMap(),
+  category:     '',
+  technologies: [],
+  notIncluded:  [],
+  faqs:         [],
+  hourlyRate:   '',
+  imageUrl:     '',
+  active:       true,
+});
+
+// ─── Shared field helpers ─────────────────────────────────────────────────────
+
+function Label({ children }) {
+  return (
+    <label className="block text-xs font-open-sauce-semibold text-[#636363] uppercase tracking-wider mb-1.5">
+      {children}
+    </label>
+  );
+}
+
+function Input({ value, onChange, placeholder, type = 'text', className = '' }) {
+  return (
+    <input
+      type={type}
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      placeholder={placeholder}
+      className={`w-full border border-[#E5F1E2] rounded-xl px-4 py-2.5 text-sm outline-none focus:border-[#45A735] focus:ring-1 focus:ring-[#45A73520] transition-colors ${className}`}
+    />
+  );
+}
+
+function Textarea({ value, onChange, placeholder, rows = 4 }) {
+  return (
+    <textarea
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      placeholder={placeholder}
+      rows={rows}
+      className="w-full border border-[#E5F1E2] rounded-xl px-4 py-2.5 text-sm outline-none focus:border-[#45A735] focus:ring-1 focus:ring-[#45A73520] resize-none transition-colors"
+    />
+  );
+}
+
+function Toggle({ value, onChange, label, hint }) {
+  return (
+    <div className="flex items-center justify-between bg-[#F7FBF6] border border-[#E5F1E2] rounded-xl px-4 py-3">
+      <div>
+        <p className="text-sm font-open-sauce-semibold text-[#26472B]">{label}</p>
+        {hint && <p className="text-xs text-[#909090] mt-0.5">{hint}</p>}
+      </div>
+      <button
+        type="button"
+        onClick={() => onChange(!value)}
+        className={`relative w-12 h-6 rounded-full transition-colors flex-shrink-0 ml-4 ${value ? 'bg-[#45A735]' : 'bg-[#D9D9D9]'}`}
+      >
+        <span className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${value ? 'translate-x-6' : 'translate-x-0.5'}`} />
+      </button>
+    </div>
+  );
+}
+
+function SectionCard({ title, hint, children }) {
+  return (
+    <div className="bg-white border border-[#E5F1E2] rounded-2xl p-6 space-y-4">
+      <div>
+        <h4 className="text-sm font-open-sauce-bold text-[#26472B]">{title}</h4>
+        {hint && <p className="text-xs text-[#909090] mt-1">{hint}</p>}
+      </div>
+      {children}
+    </div>
+  );
+}
+
+// ─── StringListEditor ─────────────────────────────────────────────────────────
+
+function StringListEditor({ items, onChange, placeholder }) {
+  const [input, setInput] = useState('');
+
+  const add = () => {
+    const val = input.trim();
+    if (!val) return;
+    onChange([...items, val]);
+    setInput('');
+  };
+
+  return (
+    <div className="space-y-3">
+      <div className="flex gap-2">
+        <Input
+          value={input}
+          onChange={setInput}
+          placeholder={placeholder}
+        />
+        <button
+          type="button"
+          onClick={add}
+          onKeyDown={(e) => e.key === 'Enter' && add()}
+          className="px-4 py-2.5 bg-[#45A735] text-white text-sm font-semibold rounded-xl hover:bg-[#3d9230] flex-shrink-0"
+        >
+          Add
+        </button>
+      </div>
+      {items.length > 0 && (
+        <ul className="space-y-2">
+          {items.map((item, i) => (
+            <li key={i} className="flex items-center justify-between bg-[#F7FBF6] border border-[#E5F1E2] rounded-xl px-4 py-2.5 text-sm">
+              <span className="text-[#26472B]">{item}</span>
+              <button
+                type="button"
+                onClick={() => onChange(items.filter((_, idx) => idx !== i))}
+                className="text-red-400 hover:text-red-600 text-xs ml-3 flex-shrink-0"
+              >
+                Remove
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+// ─── FaqEditor ────────────────────────────────────────────────────────────────
+
+function FaqEditor({ faqs, onChange }) {
+  const [q, setQ] = useState('');
+  const [a, setA] = useState('');
+
+  const add = () => {
+    if (!q.trim() || !a.trim()) return;
+    onChange([...faqs, { question: q.trim(), answer: a.trim() }]);
+    setQ(''); setA('');
+  };
+
+  const update = (i, field, val) =>
+    onChange(faqs.map((f, idx) => (idx === i ? { ...f, [field]: val } : f)));
+
+  return (
+    <div className="space-y-4">
+      {faqs.map((faq, i) => (
+        <div key={i} className="border border-[#E5F1E2] rounded-2xl p-5 space-y-3 bg-[#F7FBF6]">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold text-[#45A735] uppercase tracking-widest">FAQ #{i + 1}</span>
+            <button
+              type="button"
+              onClick={() => onChange(faqs.filter((_, idx) => idx !== i))}
+              className="text-xs text-red-400 hover:text-red-600"
+            >
+              Remove
+            </button>
+          </div>
+          <div>
+            <Label>Question</Label>
+            <Input value={faq.question} onChange={(v) => update(i, 'question', v)} placeholder="e.g. How quickly can I start?" />
+          </div>
+          <div>
+            <Label>Answer</Label>
+            <Textarea value={faq.answer} onChange={(v) => update(i, 'answer', v)} placeholder="Write a clear, helpful answer…" rows={3} />
+          </div>
+        </div>
+      ))}
+
+      <div className="border-2 border-dashed border-[#C8E5C2] rounded-2xl p-5 space-y-3">
+        <p className="text-xs font-bold text-[#45A735] uppercase tracking-widest">Add New FAQ</p>
+        <div>
+          <Label>Question</Label>
+          <Input value={q} onChange={setQ} placeholder="e.g. What happens if I need more hours?" />
+        </div>
+        <div>
+          <Label>Answer</Label>
+          <Textarea value={a} onChange={setA} placeholder="Write a helpful answer…" rows={3} />
+        </div>
+        <button
+          type="button"
+          onClick={add}
+          disabled={!q.trim() || !a.trim()}
+          className="px-5 py-2 bg-[#45A735] text-white text-sm font-semibold rounded-xl hover:bg-[#3d9230] disabled:opacity-40 transition-colors"
+        >
+          + Add FAQ
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ─── TechEditor ───────────────────────────────────────────────────────────────
+
+function TechItem({ tech, index, onChange, onRemove }) {
+  const [open, setOpen] = useState(!tech.en); // auto-open new blank items
+
+  return (
+    <div className="border border-[#E5F1E2] rounded-2xl overflow-hidden">
+      {/* Header */}
+      <div className="flex items-center justify-between px-5 py-3.5 bg-[#F7FBF6]">
+        <div className="flex items-center gap-3 min-w-0">
+          <span className="w-6 h-6 rounded-full bg-[#45A735] text-white text-[11px] font-bold flex items-center justify-center flex-shrink-0">
+            {index + 1}
+          </span>
+          <span className="text-sm font-open-sauce-semibold text-[#26472B] truncate">
+            {tech.en || <span className="text-[#909090] italic font-normal">Enter English name…</span>}
+          </span>
+        </div>
+        <div className="flex items-center gap-3 flex-shrink-0">
+          <button
+            type="button"
+            onClick={() => setOpen((v) => !v)}
+            className="text-xs font-semibold text-[#45A735] hover:underline"
+          >
+            {open ? 'Collapse ▲' : 'Translations ▼'}
+          </button>
+          <button
+            type="button"
+            onClick={onRemove}
+            className="text-xs text-red-400 hover:text-red-600"
+          >
+            Remove
+          </button>
+        </div>
+      </div>
+
+      {/* Language fields */}
+      {open && (
+        <div className="px-5 py-5 grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {LANGUAGES.map(({ code, label }) => (
+            <div key={code}>
+              <label className="block text-[10px] font-bold text-[#636363] uppercase tracking-wider mb-1.5">
+                {label}
+                {code === 'en' && <span className="text-red-400 ml-1">*</span>}
+              </label>
+              <input
+                value={tech[code] || ''}
+                onChange={(e) => onChange({ ...tech, [code]: e.target.value })}
+                placeholder={code === 'en' ? 'e.g. AI Engineer' : `Name in ${label}…`}
+                className={`w-full border rounded-xl px-3 py-2 text-sm outline-none focus:border-[#45A735] focus:ring-1 focus:ring-[#45A73520] transition-colors ${
+                  code === 'en' && !tech.en ? 'border-red-200 bg-red-50/30' : 'border-[#E5F1E2]'
+                }`}
+              />
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function TechEditor({ technologies, onChange }) {
+  return (
+    <div className="space-y-3">
+      {technologies.length === 0 && (
+        <div className="text-center py-10 border-2 border-dashed border-[#C8E5C2] rounded-2xl text-sm text-[#909090]">
+          No technologies added yet.
+        </div>
+      )}
+
+      {technologies.map((tech, i) => (
+        <TechItem
+          key={i}
+          index={i}
+          tech={tech}
+          onChange={(val) => onChange(technologies.map((t, idx) => (idx === i ? val : t)))}
+          onRemove={() => onChange(technologies.filter((_, idx) => idx !== i))}
+        />
+      ))}
+
+      <button
+        type="button"
+        onClick={() => onChange([...technologies, emptyTech()])}
+        className="w-full py-3 border-2 border-dashed border-[#45A735] text-[#45A735] text-sm font-bold rounded-2xl hover:bg-[#F7FBF6] transition-colors"
+      >
+        + Add Technology
+      </button>
+    </div>
+  );
+}
+
+// ─── GeoPricingSection ────────────────────────────────────────────────────────
+
+function GeoPricingSection({ serviceId, pendingOverrides, setPendingOverrides }) {
+  const [overrides, setOverrides] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(null);
+  // Backend field name is "basePrice" — not "price"
+  const [newRow, setNewRow] = useState({ country: 'IN', basePrice: '', currency: 'INR' });
+  const [saving, setSaving] = useState(false);
+
+  const loadOverrides = useCallback(async () => {
+    if (!serviceId) return;
+    setLoading(true);
+    try {
+      // Use server-side serviceId filter — avoids loading the entire geo_pricing collection
+      const r = await staffApi.get('/geo-pricing/admin', { params: { serviceId } });
+      setOverrides(r.data?.data || []);
+    } catch { /* silent */ }
+    finally { setLoading(false); }
+  }, [serviceId]);
+
+  useEffect(() => { loadOverrides(); }, [loadOverrides]);
+
+  const handleAdd = async () => {
+    if (!newRow.basePrice || Number(newRow.basePrice) <= 0) {
+      showError('Enter a valid price greater than 0');
+      return;
+    }
+    if (serviceId) {
+      // Service already exists — save immediately
+      setSaving(true);
+      try {
+        await staffApi.post('/geo-pricing/admin', {
+          serviceId,
+          country:   newRow.country,
+          basePrice: Number(newRow.basePrice),  // backend expects "basePrice"
+          currency:  newRow.currency,
+        });
+        showSuccess('Price override added');
+        setNewRow({ country: 'IN', basePrice: '', currency: 'INR' });
+        await loadOverrides();
+      } catch (e) { showError(e?.response?.data?.error?.message || 'Failed to add override'); }
+      finally { setSaving(false); }
+    } else {
+      // New service — queue pending; will be flushed after service creation
+      setPendingOverrides((prev) => [
+        ...prev,
+        { _tempId: Date.now(), country: newRow.country, basePrice: Number(newRow.basePrice), currency: newRow.currency },
+      ]);
+      setNewRow({ country: 'IN', basePrice: '', currency: 'INR' });
+    }
+  };
+
+  const handleDelete = async (id) => {
+    try {
+      await staffApi.delete(`/geo-pricing/admin/${id}`);
+      showSuccess('Override removed');
+      await loadOverrides();
+    } catch (e) { showError(e?.response?.data?.error?.message || 'Failed to remove override'); }
+    finally { setConfirmDelete(null); }
+  };
+
+  const sym = (currency) => CURRENCY_SYMBOLS[currency] || currency;
+  const rows = serviceId ? overrides : pendingOverrides;
+
+  return (
+    <div className="space-y-5">
+      <p className="text-xs text-[#636363]">
+        {serviceId
+          ? 'Set country-specific prices. The base hourly rate applies where no override is set.'
+          : 'These overrides will be saved automatically after the service is created.'}
+      </p>
+
+      {loading && <Spinner />}
+
+      {rows.length > 0 && (
+        <div className="border border-[#E5F1E2] rounded-2xl overflow-hidden">
+          <table className="w-full text-sm">
+            <thead className="bg-[#F7FBF6]">
+              <tr>
+                {['Country', 'Price / hr', 'Currency', ''].map((h, i) => (
+                  <th key={i} className={`px-5 py-3 text-xs font-bold text-[#636363] uppercase tracking-wider ${i < 3 ? 'text-left' : ''}`}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-[#F0F7EE]">
+              {rows.map((o) => {
+                const id = o._id || o._tempId;
+                const isConfirm = confirmDelete === id;
+                return (
+                  <tr key={id} className="hover:bg-[#F7FBF6] transition-colors">
+                    <td className="px-5 py-3 font-semibold text-[#26472B]">{o.country}</td>
+                    {/* Display "basePrice" — the actual field name stored in the DB */}
+                    <td className="px-5 py-3">{sym(o.currency)}{Number(o.basePrice).toLocaleString()}</td>
+                    <td className="px-5 py-3 text-[#636363]">{o.currency}</td>
+                    <td className="px-5 py-3 text-right">
+                      {isConfirm ? (
+                        <span className="flex items-center justify-end gap-2">
+                          <span className="text-xs text-[#636363]">Remove?</span>
+                          <button
+                            onClick={() => serviceId
+                              ? handleDelete(o._id)
+                              : (setPendingOverrides((p) => p.filter((x) => x._tempId !== o._tempId)), setConfirmDelete(null))
+                            }
+                            className="text-xs px-2.5 py-1 bg-red-500 text-white rounded-lg"
+                          >
+                            Yes
+                          </button>
+                          <button onClick={() => setConfirmDelete(null)}
+                            className="text-xs px-2.5 py-1 border border-[#E5F1E2] rounded-lg">No</button>
+                        </span>
+                      ) : (
+                        <button onClick={() => setConfirmDelete(id)} className="text-xs text-red-400 hover:text-red-600">Remove</button>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {rows.length === 0 && !loading && (
+        <p className="text-sm text-[#909090] italic text-center py-4">No country overrides yet.</p>
+      )}
+
+      {/* Add row */}
+      <div className="border border-[#E5F1E2] rounded-2xl p-5 bg-[#F7FBF6] space-y-4">
+        <p className="text-xs font-bold text-[#45A735] uppercase tracking-widest">Add Country Override</p>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div>
+            <Label>Country</Label>
+            <select
+              value={newRow.country}
+              onChange={(e) => {
+                const c = COUNTRIES.find((x) => x.code === e.target.value);
+                setNewRow({ country: e.target.value, basePrice: newRow.basePrice, currency: c?.currency || 'USD' });
+              }}
+              className="w-full border border-[#E5F1E2] rounded-xl px-3 py-2.5 text-sm bg-white outline-none focus:border-[#45A735]"
+            >
+              {COUNTRIES.map((c) => <option key={c.code} value={c.code}>{c.name} ({c.code})</option>)}
+            </select>
+          </div>
+          <div>
+            <Label>Base Price / hr</Label>
+            <input
+              type="number" min="0.01" step="0.01"
+              value={newRow.basePrice}
+              onChange={(e) => setNewRow({ ...newRow, basePrice: e.target.value })}
+              placeholder="e.g. 150"
+              className="w-full border border-[#E5F1E2] rounded-xl px-3 py-2.5 text-sm outline-none focus:border-[#45A735]"
+            />
+          </div>
+          <div>
+            <Label>Currency</Label>
+            <select
+              value={newRow.currency}
+              onChange={(e) => setNewRow({ ...newRow, currency: e.target.value })}
+              className="w-full border border-[#E5F1E2] rounded-xl px-3 py-2.5 text-sm bg-white outline-none focus:border-[#45A735]"
+            >
+              {Object.entries(CURRENCY_SYMBOLS).map(([c, s]) => <option key={c} value={c}>{c} {s}</option>)}
+            </select>
+          </div>
+        </div>
+        <button
+          type="button" onClick={handleAdd} disabled={saving}
+          className="px-5 py-2.5 bg-[#45A735] text-white text-sm font-bold rounded-xl hover:bg-[#3d9230] disabled:opacity-50 transition-colors"
+        >
+          {saving ? 'Saving…' : '+ Add Override'}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ─── Main ServiceFormPage ─────────────────────────────────────────────────────
+
+export default function ServiceFormPage({ serviceId = null, initialData = null }) {
+  const router = useRouter();
+  const isEdit = Boolean(serviceId);
+
+  const [form, setForm]             = useState(emptyForm());
+  const [pendingGeo, setPendingGeo] = useState([]);
+  const [tab, setTab]               = useState(0);
+  const [busy, setBusy]             = useState(false);
+
+  // Initialise form from initialData (edit) or keep empty (new).
+  // staffApi no longer runs flattenI18nDeep, so initialData.name can be
+  // either a plain string (legacy) or a full i18n object {en, hi, ...}.
+  useEffect(() => {
+    if (!initialData) return;
+
+    // Hydrate name map — use the full i18n object if available, else seed English
+    const rawName = initialData.name;
+    const nameMap = (rawName && typeof rawName === 'object' && !Array.isArray(rawName))
+      ? { ...emptyLangMap(), ...rawName }
+      : { ...emptyLangMap(), en: typeof rawName === 'string' ? rawName : '' };
+
+    // Hydrate description map
+    const rawDesc = initialData.description;
+    const descMap = (rawDesc && typeof rawDesc === 'object' && !Array.isArray(rawDesc))
+      ? { ...emptyLangMap(), ...rawDesc }
+      : { ...emptyLangMap(), en: typeof rawDesc === 'string' ? rawDesc : '' };
+
+    // Hydrate technologies — each tech may be a string or an i18n-keyed object
+    // (stored as { name, en, hi, ... }).  We keep all language fields.
+    const techs = (initialData.technologies || []).map((t) => {
+      if (typeof t === 'string') return { ...emptyTech(), en: t };
+      if (typeof t === 'object' && t !== null) {
+        // Merge all known language keys; fall back to t.name for the English field
+        const base = { ...emptyTech() };
+        for (const code of LANG_CODES) { if (t[code]) base[code] = t[code]; }
+        if (!base.en && t.name) base.en = t.name;
+        return base;
+      }
+      return null;
+    }).filter((t) => t?.en);
+
+    const notInc = (initialData.notIncluded || [])
+      .map((t) => (typeof t === 'string' ? t : t?.name || ''))
+      .filter(Boolean);
+
+    const faqs = (initialData.faqs || []).map((f) => ({
+      question: typeof f.question === 'object' ? (f.question.en || '') : (f.question || ''),
+      answer:   typeof f.answer   === 'object' ? (f.answer.en   || '') : (f.answer   || ''),
+    }));
+
+    setForm({
+      name:         nameMap,
+      description:  descMap,
+      category:     initialData.category || '',
+      technologies: techs,
+      notIncluded:  notInc,
+      faqs,
+      hourlyRate:   String(initialData.hourlyRate ?? initialData.pricing?.hourly ?? ''),
+      imageUrl:     initialData.imageUrl || initialData.image || '',
+      active:       initialData.active !== false,
+    });
+  }, [initialData]);
+
+  const setLang = (field, lang, val) =>
+    setForm((f) => ({ ...f, [field]: { ...f[field], [lang]: val } }));
+
+  const save = async () => {
+    if (!form.name.en.trim()) { showError('English name is required'); setTab(0); return; }
+    setBusy(true);
+    try {
+      // Build i18n name object — only include locales that have a value
+      const nameI18n = Object.fromEntries(
+        LANG_CODES.map((c) => [c, form.name[c]?.trim() || '']).filter(([, v]) => v)
+      );
+
+      // Build i18n description object the same way
+      const descI18n = Object.fromEntries(
+        LANG_CODES.map((c) => [c, form.description[c]?.trim() || '']).filter(([, v]) => v)
+      );
+
+      // Technologies — store as rich objects: { name (English), en, hi, ... }
+      // The customer-facing flattenI18nDeep interceptor will localise to a
+      // string for the active locale at read time.
+      const techObjects = form.technologies
+        .filter((t) => t.en?.trim())
+        .map((t) => {
+          const obj = { name: t.en.trim() };
+          for (const c of LANG_CODES) { if (t[c]?.trim()) obj[c] = t[c].trim(); }
+          return obj;
+        });
+
+      const body = {
+        name:         nameI18n,
+        category:     form.category || '',
+        description:  descI18n,
+        technologies: techObjects,
+        notIncluded:  form.notIncluded.filter(Boolean),
+        faqs:         form.faqs,
+        hourlyRate:   Number(form.hourlyRate) || 0,
+        imageUrl:     form.imageUrl || '',
+        active:       form.active,
+      };
+
+      let savedId = serviceId;
+      if (isEdit) {
+        await staffApi.put(`/admin/services/${serviceId}`, body);
+        showSuccess('Service updated!');
+      } else {
+        const r = await staffApi.post('/admin/services', body);
+        savedId = r.data?.data?._id || r.data?._id;
+        showSuccess('Service created!');
+      }
+
+      // Flush pending geo overrides (added before the service existed)
+      if (!isEdit && savedId && pendingGeo.length > 0) {
+        await Promise.allSettled(
+          pendingGeo.map((o) =>
+            staffApi.post('/geo-pricing/admin', {
+              serviceId: savedId,
+              country:   o.country,
+              basePrice: o.basePrice,   // backend field is "basePrice" not "price"
+              currency:  o.currency,
+            })
+          )
+        );
+      }
+
+      router.push('/admin/services');
+    } catch (e) {
+      showError(e?.response?.data?.error?.message || 'Failed to save service');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const tabHasError = (i) => i === 0 && !form.name.en.trim();
+
+  return (
+    <div className="min-h-screen bg-[#F5F7F5]">
+      {/* ── Top bar ── */}
+      <div className="sticky top-0 z-20 bg-white border-b border-[#E5F1E2]">
+        <div className="max-w-4xl mx-auto px-6 py-4 flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <button
+              onClick={() => router.push('/admin/services')}
+              className="flex items-center gap-1.5 text-sm text-[#636363] hover:text-[#26472B] transition-colors"
+            >
+              <svg width={16} height={16} viewBox="0 0 24 24" fill="none">
+                <path d="M19 12H5M12 5l-7 7 7 7" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+              Services
+            </button>
+            <span className="text-[#D9D9D9]">/</span>
+            <h1 className="text-sm font-open-sauce-bold text-[#26472B]">
+              {isEdit ? (form.name.en || 'Edit Service') : 'New Service'}
+            </h1>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => router.push('/admin/services')}
+              className="px-4 py-2 text-sm font-semibold text-[#636363] border border-[#E5F1E2] rounded-xl hover:bg-[#F7FBF6] transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={save}
+              disabled={busy || !form.name.en.trim()}
+              className="px-5 py-2 text-sm font-bold text-white bg-[#45A735] rounded-xl hover:bg-[#3d9230] disabled:opacity-50 transition-colors flex items-center gap-2"
+            >
+              {busy && (
+                <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none">
+                  <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeDasharray="32" strokeDashoffset="12" />
+                </svg>
+              )}
+              {busy ? 'Saving…' : isEdit ? 'Save Changes' : 'Create Service'}
+            </button>
+          </div>
+        </div>
+
+        {/* Tab bar */}
+        <div className="max-w-4xl mx-auto px-6 flex gap-1 pb-0 overflow-x-auto">
+          {TABS.map((label, i) => (
+            <button
+              key={i}
+              onClick={() => setTab(i)}
+              className={`flex-shrink-0 px-4 py-2.5 text-sm font-open-sauce-semibold border-b-2 transition-all whitespace-nowrap ${
+                tab === i
+                  ? 'border-[#45A735] text-[#26472B]'
+                  : 'border-transparent text-[#636363] hover:text-[#26472B]'
+              } ${tabHasError(i) ? 'text-red-500' : ''}`}
+            >
+              {label}
+              {tabHasError(i) && <span className="ml-1 text-red-400">●</span>}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* ── Tab content ── */}
+      <div className="max-w-4xl mx-auto px-6 py-8 space-y-6">
+
+        {/* Tab 0 — Basic Info */}
+        {tab === 0 && (
+          <>
+            <SectionCard title="Service Identity" hint="Core details shown at the top of the service page.">
+              <div>
+                <Label>Service Name (English) <span className="text-red-500 normal-case font-normal">— required</span></Label>
+                <Input
+                  value={form.name.en}
+                  onChange={(v) => setLang('name', 'en', v)}
+                  placeholder="e.g. AI Engineer"
+                />
+                <p className="text-xs text-[#909090] mt-1">Translations for other languages are in the Translations tab.</p>
+              </div>
+
+              <div>
+                <Label>Category <span className="text-[#909090] normal-case font-normal">— controls the icon shown on the customer card</span></Label>
+                <select
+                  value={form.category}
+                  onChange={(e) => setForm({ ...form, category: e.target.value })}
+                  className="w-full border border-[#E5F1E2] rounded-xl px-4 py-2.5 text-sm bg-white outline-none focus:border-[#45A735] focus:ring-1 focus:ring-[#45A73520] transition-colors"
+                >
+                  <option value="">— Select a category —</option>
+                  {SERVICE_CATEGORIES.map((c) => (
+                    <option key={c} value={c}>{c}</option>
+                  ))}
+                </select>
+                <p className="text-xs text-[#909090] mt-1">
+                  Determines which icon appears on the homepage service card.
+                  If left blank the icon defaults to a keyword match on the service name.
+                </p>
+              </div>
+
+              <div>
+                <Label>Image URL <span className="text-[#909090] normal-case font-normal">— optional banner/hero image</span></Label>
+                <Input
+                  value={form.imageUrl}
+                  onChange={(v) => setForm({ ...form, imageUrl: v })}
+                  placeholder="https://cdn.example.com/service-image.png"
+                />
+              </div>
+            </SectionCard>
+
+            <SectionCard title="Pricing" hint="Set the base hourly rate in INR. Country-specific overrides are in the Geo Pricing tab.">
+              <div>
+                <Label>Base Hourly Rate (INR ₹)</Label>
+                <Input
+                  type="number"
+                  value={form.hourlyRate}
+                  onChange={(v) => setForm({ ...form, hourlyRate: v })}
+                  placeholder="e.g. 2500"
+                />
+              </div>
+            </SectionCard>
+
+            <SectionCard title="Visibility">
+              <Toggle
+                value={form.active}
+                onChange={(v) => setForm({ ...form, active: v })}
+                label="Active"
+                hint="When off, this service is hidden from users on the platform."
+              />
+            </SectionCard>
+          </>
+        )}
+
+        {/* Tab 1 — Translations */}
+        {tab === 1 && (
+          <>
+            <p className="text-sm text-[#636363]">
+              Enter the service <strong>name</strong> and <strong>description</strong> in each language.
+              English is required — all others are optional and fall back to English if empty.
+            </p>
+            {LANGUAGES.map(({ code, label }) => (
+              <SectionCard
+                key={code}
+                title={
+                  <span className="flex items-center gap-2">
+                    {label}
+                    <span className="text-xs font-mono text-[#909090]">{code}</span>
+                    {code === 'en' && <span className="text-xs text-red-400 font-normal">Required</span>}
+                  </span>
+                }
+              >
+                <div>
+                  <Label>Name in {label}</Label>
+                  <Input
+                    value={form.name[code] || ''}
+                    onChange={(v) => setLang('name', code, v)}
+                    placeholder={code === 'en' ? 'e.g. AI Engineer' : `Service name in ${label}…`}
+                    className={code === 'en' && !form.name.en ? 'border-red-200' : ''}
+                  />
+                </div>
+                <div>
+                  <Label>Description in {label}</Label>
+                  <Textarea
+                    value={form.description[code] || ''}
+                    onChange={(v) => setLang('description', code, v)}
+                    placeholder={`Brief description of this service in ${label}…`}
+                    rows={3}
+                  />
+                </div>
+              </SectionCard>
+            ))}
+          </>
+        )}
+
+        {/* Tab 2 — Technologies & Scope */}
+        {tab === 2 && (
+          <>
+            <SectionCard
+              title="Technologies / Engineer Types"
+              hint={`Each technology can be named in all 8 languages. These appear as chips in the "Curated Engineers For You" section on the service page. English name is required.`}
+            >
+              <TechEditor
+                technologies={form.technologies}
+                onChange={(val) => setForm({ ...form, technologies: val })}
+              />
+            </SectionCard>
+
+            <SectionCard
+              title="What's Not Included"
+              hint={`These appear in the red "What's Not Included" box on the service page. Add one item per line.`}
+            >
+              <StringListEditor
+                items={form.notIncluded}
+                onChange={(val) => setForm({ ...form, notIncluded: val })}
+                placeholder="e.g. Software licenses or paid third-party tools"
+              />
+            </SectionCard>
+          </>
+        )}
+
+        {/* Tab 3 — FAQs */}
+        {tab === 3 && (
+          <SectionCard
+            title="Frequently Asked Questions"
+            hint="These appear in the FAQ accordion at the bottom of the service page. Leave empty to show the platform's default static FAQs."
+          >
+            <FaqEditor
+              faqs={form.faqs}
+              onChange={(val) => setForm({ ...form, faqs: val })}
+            />
+          </SectionCard>
+        )}
+
+        {/* Tab 4 — Geo Pricing */}
+        {tab === 4 && (
+          <SectionCard
+            title="Country-Specific Pricing"
+            hint="Override the base INR hourly rate for specific countries and currencies."
+          >
+            <GeoPricingSection
+              serviceId={serviceId}
+              pendingOverrides={pendingGeo}
+              setPendingOverrides={setPendingGeo}
+            />
+          </SectionCard>
+        )}
+
+        {/* Bottom action bar */}
+        <div className="flex items-center justify-between pt-4 border-t border-[#E5F1E2]">
+          <div className="flex gap-1">
+            {TABS.map((_, i) => (
+              <button
+                key={i}
+                onClick={() => setTab(i)}
+                className={`w-2 h-2 rounded-full transition-colors ${tab === i ? 'bg-[#45A735]' : 'bg-[#D9D9D9] hover:bg-[#B0CEB0]'}`}
+              />
+            ))}
+          </div>
+          <div className="flex gap-2">
+            {tab > 0 && (
+              <button
+                onClick={() => setTab((t) => t - 1)}
+                className="px-4 py-2 text-sm font-semibold text-[#636363] border border-[#E5F1E2] rounded-xl hover:bg-[#F7FBF6]"
+              >
+                ← Previous
+              </button>
+            )}
+            {tab < TABS.length - 1 ? (
+              <button
+                onClick={() => setTab((t) => t + 1)}
+                className="px-4 py-2 text-sm font-bold text-white bg-[#45A735] rounded-xl hover:bg-[#3d9230]"
+              >
+                Next →
+              </button>
+            ) : (
+              <button
+                onClick={save}
+                disabled={busy || !form.name.en.trim()}
+                className="px-5 py-2 text-sm font-bold text-white bg-[#45A735] rounded-xl hover:bg-[#3d9230] disabled:opacity-50"
+              >
+                {busy ? 'Saving…' : isEdit ? 'Save Changes' : 'Create Service'}
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

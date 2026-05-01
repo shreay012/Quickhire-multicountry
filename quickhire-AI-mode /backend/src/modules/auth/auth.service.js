@@ -132,16 +132,20 @@ export async function sendOtp({ mobile, role }) {
   const hash = await bcrypt.hash(otp, 8);
   await kv_set(`otp:${role}:${mobile}`, hash, 'EX', env.OTP_TTL_SECONDS);
   await sendSms(mobile, `Your QuickHire OTP is ${otp}. Valid for 5 minutes.`);
-  logger.info({ mobile, otp }, '[DEV OTP]'); // visible in backend console for local testing
+  // Never log OTP in production — security + GDPR risk
+  if (env.NODE_ENV !== 'production') {
+    logger.info({ mobile, otp }, '[DEV OTP]');
+  }
   return { success: true };
 }
 
 export async function verifyOtp({ mobile, otp, fcmToken, role = 'user', ip, ua }) {
   const key = `otp:${role}:${mobile}`;
 
-  // Dev master OTP — bypass store when matched (only if env var is set)
+  // Dev master OTP — STRICTLY blocked in production.
+  // Only active in development/staging when DEV_MASTER_OTP is explicitly set.
   const masterOtp = env.DEV_MASTER_OTP;
-  if (masterOtp && otp === masterOtp) {
+  if (masterOtp && env.NODE_ENV !== 'production' && otp === masterOtp) {
     await kv_del(key).catch(() => {});
   } else {
     const hash = await kv_get(key);

@@ -1,87 +1,122 @@
 /**
- * Geo-detection middleware  (Phase 4)
+ * Geo-detection middleware
  *
- * Priority order:
+ * Priority order for country detection:
  *  1. Cloudflare CF-IPCountry header
- *  2. X-Country override header (set by frontend from cookie/profile)
- *  3. Accept-Language header (browser default)
+ *  2. X-Country override header (set by frontend from cookie / user profile)
+ *  3. Query param _country (admin testing only — stripped in production)
  *  4. Default: IN
  *
- * Attaches req.geo = { country, currency, lang, timezone } to every request.
- * The countries collection (loaded once and cached) provides per-country config.
+ * Attaches req.geo to every request:
+ *   req.geo = {
+ *     country,       // ISO 3166-1 alpha-2 (e.g. 'IN')
+ *     currency,      // ISO 4217 (e.g. 'INR')
+ *     lang,          // BCP 47 tag (e.g. 'en')
+ *     timezone,      // IANA (e.g. 'Asia/Kolkata')
+ *     rtl,           // boolean — true for Arabic locales
+ *     gateways,      // ordered gateway IDs (first = primary)
+ *     bnpl,          // boolean
+ *     tax,           // tax rule object
+ *     locale,        // BCP 47 locale (e.g. 'en-IN')
+ *     countryConfig, // full CountryConfig object
+ *   }
+ *
+ * The `countries` MongoDB collection is loaded once every 5 minutes and merged
+ * on top of the canonical COUNTRY_CONFIG (so admin overrides via DB win).
  */
-import { redis } from '../../config/redis.js';
 import { getDb } from '../../config/db.js';
 import { logger } from '../../config/logger.js';
-
-// Fallback map when DB is unavailable
-const COUNTRY_DEFAULTS = {
-  IN: { currency: 'INR', lang: 'en', timezone: 'Asia/Kolkata', gateways: ['razorpay'] },
-  AE: { currency: 'AED', lang: 'en', timezone: 'Asia/Dubai', gateways: ['stripe', 'tabby'] },
-  US: { currency: 'USD', lang: 'en', timezone: 'America/New_York', gateways: ['stripe'] },
-  GB: { currency: 'GBP', lang: 'en', timezone: 'Europe/London', gateways: ['stripe'] },
-  SG: { currency: 'SGD', lang: 'en', timezone: 'Asia/Singapore', gateways: ['xendit'] },
-  SA: { currency: 'SAR', lang: 'ar', timezone: 'Asia/Riyadh', gateways: ['stripe', 'tabby'] },
-};
-const DEFAULT_COUNTRY = 'IN';
+import { getCountryConfig, DEFAULT_COUNTRY_CODE } from '../../config/country.config.js';
 
 let countryConfigCache = null;
 let cacheExpiry = 0;
+const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 
+/**
+ * Load country configs from the DB (in-memory cached).
+ * Merges DB records on top of canonical config so DB overrides win.
+ * Falls back to canonical config silently when DB is unavailable.
+ */
 async function loadCountryConfigs() {
   const now = Date.now();
   if (countryConfigCache && now < cacheExpiry) return countryConfigCache;
 
   try {
     const docs = await getDb().collection('countries').find({ active: true }).toArray();
-    const map = {};
-    for (const d of docs) map[d.code] = d;
-    if (Object.keys(map).length > 0) {
+    if (docs.length > 0) {
+      const map = {};
+      for (const d of docs) map[d.code] = d;
       countryConfigCache = map;
-      cacheExpiry = now + 5 * 60 * 1000; // 5 min in-process cache
+      cacheExpiry = now + CACHE_TTL_MS;
     }
   } catch (err) {
-    logger.warn({ err }, 'failed to load country configs from DB, using hardcoded defaults');
+    logger.warn({ err: err.message }, 'geo: failed to load country configs from DB, using canonical defaults');
   }
 
   return countryConfigCache || {};
 }
 
 function extractLangFromAcceptLanguage(header = '') {
-  // 'en-GB,en;q=0.9,hi;q=0.8' → 'en'
+  // 'ar-AE,ar;q=0.9,en;q=0.8' → 'ar'
   const first = header.split(',')[0]?.split(';')[0]?.trim();
   return first ? first.slice(0, 2).toLowerCase() : 'en';
 }
 
 export async function geoMiddleware(req, _res, next) {
   try {
-    // 1. Cloudflare
-    let country = req.header('CF-IPCountry');
-    // 2. Explicit override (from frontend cookie stored after user selects)
-    const override = req.header('X-Country') || req.query._country;
-    if (override && /^[A-Z]{2}$/.test(override)) country = override;
-    // 3. Default
-    if (!country || country === 'XX') country = DEFAULT_COUNTRY;
+    // ── 1. Detect country ──────────────────────────────────────────────
+    let country = req.header('CF-IPCountry') || null;
+
+    // Explicit override from frontend (cookie-based or user profile selection)
+    const override = req.header('X-Country') ||
+      (process.env.NODE_ENV !== 'production' ? req.query._country : null);
+    if (override && /^[A-Z]{2}$/i.test(override)) {
+      country = override.toUpperCase();
+    }
+
+    if (!country || country === 'XX') country = DEFAULT_COUNTRY_CODE;
     country = country.toUpperCase();
 
-    const configs = await loadCountryConfigs();
-    const config = configs[country] || COUNTRY_DEFAULTS[country] || COUNTRY_DEFAULTS[DEFAULT_COUNTRY];
+    // ── 2. Resolve config: DB override > canonical COUNTRY_CONFIG ──────
+    const dbConfigs = await loadCountryConfigs();
+    const resolved = dbConfigs[country] ?? getCountryConfig(country);
 
-    // Language: from X-Lang header or Accept-Language
+    // ── 3. Resolve language ───────────────────────────────────────────
     const langOverride = req.header('X-Lang');
-    const lang = langOverride || extractLangFromAcceptLanguage(req.header('Accept-Language')) || config.lang || 'en';
+    const lang = langOverride ||
+      extractLangFromAcceptLanguage(req.header('Accept-Language')) ||
+      resolved.lang ||
+      resolved.supportedLangs?.[0] ||
+      'en';
 
+    // ── 4. Attach to request ──────────────────────────────────────────
     req.geo = {
       country,
-      currency: config.currency || 'INR',
+      currency: resolved.currency || 'INR',
       lang,
-      timezone: config.timezone || 'Asia/Kolkata',
-      gateways: config.gateways || ['razorpay'],
-      countryConfig: config,
+      timezone: resolved.timezone || 'Asia/Kolkata',
+      locale: resolved.locale || 'en-IN',
+      rtl: resolved.rtl === true,
+      gateways: resolved.gateways || ['razorpay'],
+      bnpl: resolved.bnpl === true,
+      tax: resolved.tax || { type: 'none', rate: 0, inclusive: false, name: '', registrationLabel: '' },
+      countryConfig: resolved,
     };
   } catch (err) {
-    logger.warn({ err }, 'geo middleware error, using defaults');
-    req.geo = { country: DEFAULT_COUNTRY, currency: 'INR', lang: 'en', timezone: 'Asia/Kolkata', gateways: ['razorpay'] };
+    logger.warn({ err: err.message }, 'geo middleware error, using IN defaults');
+    req.geo = {
+      country: DEFAULT_COUNTRY_CODE,
+      currency: 'INR',
+      lang: 'en',
+      timezone: 'Asia/Kolkata',
+      locale: 'en-IN',
+      rtl: false,
+      gateways: ['razorpay'],
+      bnpl: false,
+      tax: { type: 'gst', rate: 0.18, inclusive: true, name: 'GST', registrationLabel: 'GSTIN' },
+      countryConfig: getCountryConfig(DEFAULT_COUNTRY_CODE),
+    };
   }
+
   next();
 }

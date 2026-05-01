@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import staffApi from '@/lib/axios/staffApi';
+import { showError, showSuccess } from '@/lib/utils/toast';
 import { PageHeader, StatusBadge, Spinner, ErrorBox, Button } from '@/components/staff/ui';
 
 function fmtDate(d) { if (!d) return '—'; try { return new Date(d).toLocaleString(); } catch { return String(d); } }
@@ -48,20 +49,20 @@ export default function ResourceAssignmentDetailPage() {
   const action = async (kind) => {
     setBusy(kind);
     try { await staffApi.post(`/resource/assignments/${id}/${kind}`, {}); await load(); }
-    catch (e) { alert(e?.response?.data?.error?.message || `Failed to ${kind}`); }
+    catch (e) { showError(e?.response?.data?.error?.message || `Failed to ${kind}`); }
     finally { setBusy(null); }
   };
 
   const submitLog = async (e) => {
     e?.preventDefault();
     const hours = Number(logHours);
-    if (!hours || hours <= 0) { alert('Enter valid hours'); return; }
+    if (!hours || hours <= 0) { showError('Enter valid hours'); return; }
     setBusy('log');
     try {
       await staffApi.post('/resource/time-log', { bookingId: id, hours, note: logNote });
       setLogHours(''); setLogNote('');
-      alert('Time logged ✓');
-    } catch (e) { alert(e?.response?.data?.error?.message || 'Failed'); }
+      showSuccess('Time logged ✓');
+    } catch (e) { showError(e?.response?.data?.error?.message || 'Failed'); }
     finally { setBusy(null); }
   };
 
@@ -74,7 +75,7 @@ export default function ResourceAssignmentDetailPage() {
       const r = await staffApi.post(`/resource/assignments/${id}/messages`, { msg: text });
       setMessages((arr) => [...arr, r.data?.data]);
       setDraft('');
-    } catch (e) { alert(e?.response?.data?.error?.message || 'Failed'); }
+    } catch (e) { showError(e?.response?.data?.error?.message || 'Failed'); }
     finally { setSending(false); }
   };
 

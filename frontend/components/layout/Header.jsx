@@ -6,7 +6,6 @@ import Image from "next/image";
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useTranslations } from "next-intl";
 import axiosInstance, { userAuth } from "@/lib/axios/axiosInstance";
-import LocaleCurrencySwitcher from "@/components/common/LocaleCurrencySwitcher";
 import chatSocketService from "@/lib/services/chatSocketService";
 
 const Header = () => {
@@ -164,8 +163,10 @@ const Header = () => {
   const isMobile = screenSize === "mobile";
   const isTablet = screenSize === "tablet";
 
+  // In RTL (Arabic) the "go forward" arrow should point left (←).
+  // `rtl:rotate-180` achieves this without a separate component.
   const ChevronRight = () => (
-    <svg width={20} height={20} viewBox="0 0 24 24" fill="none">
+    <svg width={20} height={20} viewBox="0 0 24 24" fill="none" className="rtl:rotate-180">
       <path d="M9 6l6 6-6 6" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
@@ -175,8 +176,8 @@ const Header = () => {
       <header className="sticky top-0 z-50 w-full bg-white border-b border-gray-200 h-[72px] relative">
         <div className={`flex items-center h-full w-full justify-end ${isMobile ? "px-4" : isTablet ? "px-8" : "px-20"}`}>
 
-          {/* Logo */}
-          <Link href="/" className="flex items-center flex-shrink-0 absolute left-4 sm:left-8 lg:left-20">
+          {/* Logo — start-* = inset-inline-start (left in LTR, right in RTL) */}
+          <Link href="/" className="flex items-center flex-shrink-0 absolute start-4 sm:start-8 lg:start-20">
             <Image src="/quickhire-logo.svg" alt="QuickHire" width={isMobile ? 28 : isTablet ? 32 : 36} height={isMobile ? 28 : isTablet ? 32 : 36} className="h-auto w-auto" priority />
           </Link>
 
@@ -186,13 +187,13 @@ const Header = () => {
               <Link href="/cart" className="relative p-2 text-gray-600 hover:text-[#45A735] hover:bg-gray-100 rounded-lg transition-all duration-200 cursor-pointer" aria-label="Cart">
                 <Image src="/cartIcon.svg" alt="Cart" width={20} height={20} className="w-auto h-auto" />
                 {stats.cartItemCount > 0 && (
-                  <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">{stats.cartItemCount}</span>
+                  <span className="absolute -top-1 -end-1 bg-red-500 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">{stats.cartItemCount}</span>
                 )}
               </Link>
               <Link href="/notifications" className="relative p-2 text-gray-600 hover:text-[#45A735] hover:bg-gray-100 rounded-lg transition-all duration-200 cursor-pointer" aria-label="Notifications">
                 <Image src="/bellIcon.svg" alt="Notifications" width={20} height={20} className="w-auto h-auto" />
                 {stats.unreadNotificationsCount > 0 && (
-                  <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">{stats.unreadNotificationsCount}</span>
+                  <span className="absolute -top-1 -end-1 bg-red-500 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">{stats.unreadNotificationsCount}</span>
                 )}
               </Link>
             </div>
@@ -207,22 +208,20 @@ const Header = () => {
                 </Link>
               ))}
 
-              <LocaleCurrencySwitcher compact={isTablet} />
-
               {isAuthenticated ? (
                 <div className="flex items-center gap-4 ml-4">
                   {/* Cart */}
                   <Link href="/cart" className="relative p-2 text-gray-600 hover:text-[#45A735] hover:bg-gray-100 rounded-lg transition-all duration-200 cursor-pointer" aria-label="Cart">
                     <Image src="/cartIcon.svg" alt="Cart" width={isTablet ? 20 : 24} height={isTablet ? 20 : 24} className="w-auto h-auto" />
                     {stats.cartItemCount > 0 && (
-                      <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">{stats.cartItemCount}</span>
+                      <span className="absolute -top-1 -end-1 bg-red-500 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">{stats.cartItemCount}</span>
                     )}
                   </Link>
                   {/* Notifications */}
                   <Link href="/notifications" className="relative p-2 text-gray-600 hover:text-[#45A735] hover:bg-gray-100 rounded-lg transition-all duration-200 cursor-pointer" aria-label="Notifications">
                     <Image src="/bellIcon.svg" alt="Notifications" width={isTablet ? 20 : 24} height={isTablet ? 20 : 24} className="w-auto h-auto" />
                     {stats.unreadNotificationsCount > 0 && (
-                      <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">{stats.unreadNotificationsCount}</span>
+                      <span className="absolute -top-1 -end-1 bg-red-500 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">{stats.unreadNotificationsCount}</span>
                     )}
                   </Link>
                   {/* Profile Dropdown */}
@@ -231,7 +230,7 @@ const Header = () => {
                       <Image src="/profileIcon.svg" alt="User Profile" width={isTablet ? 20 : 24} height={isTablet ? 20 : 24} className="w-auto h-auto" />
                     </button>
                     {showUserMenu && (
-                      <div className="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-2xl border border-gray-200 py-3 z-50">
+                      <div className="absolute end-0 mt-2 w-56 bg-white rounded-xl shadow-2xl border border-gray-200 py-3 z-50">
                         {[
                           { label: t("myProfile"), href: "/profile?section=profile" },
                           { label: t("bookings"), href: "/profile?section=bookings" },
@@ -277,18 +276,19 @@ const Header = () => {
       {isMobile && (
         <>
           {isMobileMenuOpen && <div className="fixed inset-0 bg-black/50 z-30 transition-opacity duration-300" onClick={() => setIsMobileMenuOpen(false)} />}
-          <div className={`fixed top-[57px] right-0 bottom-0 w-[280px] bg-white z-40 transform transition-transform duration-300 ease-in-out ${isMobileMenuOpen ? "translate-x-0 shadow-2xl" : "translate-x-full"}`}>
+          {/*
+            end-0 = inset-inline-end: 0 → right in LTR, left in RTL.
+            ltr:translate-x-full  slides menu out to the right when closed (LTR).
+            rtl:-translate-x-full slides menu out to the left  when closed (RTL).
+          */}
+          <div className={`fixed top-[57px] end-0 bottom-0 w-[280px] bg-white z-40 transform transition-transform duration-300 ease-in-out ${isMobileMenuOpen ? "translate-x-0 shadow-2xl" : "ltr:translate-x-full rtl:-translate-x-full"}`}>
             <nav className="flex flex-col p-0">
               {menuItems.map((item) => (
-                <Link key={item.path} href={item.path} className={`mt-2 px-6 py-1 text-base font-opensauce transition-colors duration-200 ${isMenuItemActive(item.path) ? "text-[#45A735] font-semibold" : "text-gray-700 font-normal hover:text-[#45A735]"}`} onClick={() => setIsMobileMenuOpen(false)}>
+                <Link key={item.path} href={item.path} className={`mt-2 px-6 py-1 text-base font-opensauce transition-colors duration-200 text-start ${isMenuItemActive(item.path) ? "text-[#45A735] font-semibold" : "text-gray-700 font-normal hover:text-[#45A735]"}`} onClick={() => setIsMobileMenuOpen(false)}>
                   {item.label}
                 </Link>
               ))}
               <div className="border-t border-gray-300 my-0" />
-              {/* Language & Currency switcher in mobile menu */}
-              <div className="px-6 py-4 border-b border-gray-200">
-                <LocaleCurrencySwitcher mobile />
-              </div>
               {isAuthenticated ? (
                 <>
                   {[
@@ -297,12 +297,12 @@ const Header = () => {
                     { label: t("payments"), href: "/profile?section=payments" },
                     { label: t("supportHelp"), href: "/profile?section=support" },
                   ].map((item) => (
-                    <Link key={item.label} href={item.href} className="flex items-center justify-between w-full px-6 py-4 text-gray-700 hover:bg-gray-50 transition-colors border-b border-gray-200" onClick={() => setIsMobileMenuOpen(false)}>
+                    <Link key={item.label} href={item.href} className="flex items-center justify-between w-full px-6 py-4 text-gray-700 hover:bg-gray-50 transition-colors border-b border-gray-200 text-start" onClick={() => setIsMobileMenuOpen(false)}>
                       <span className="text-base font-medium">{item.label}</span>
                       <ChevronRight />
                     </Link>
                   ))}
-                  <button className="flex items-center justify-between w-full px-6 py-4 text-gray-700 hover:bg-gray-50 transition-colors" onClick={handleLogout}>
+                  <button className="flex items-center justify-between w-full px-6 py-4 text-gray-700 hover:bg-gray-50 transition-colors text-start" onClick={handleLogout}>
                     <span className="text-base font-medium">{t("logOut")}</span>
                     <ChevronRight />
                   </button>

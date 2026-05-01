@@ -5,10 +5,10 @@ import { asyncHandler } from '../../utils/asyncHandler.js';
 import { roleGuard } from '../../middleware/role.middleware.js';
 import { validate } from '../../middleware/validate.middleware.js';
 import { getDb } from '../../config/db.js';
-import { redis, publish } from '../../config/redis.js';
+import { publish } from '../../config/redis.js';
 import { AppError } from '../../utils/AppError.js';
 import { toObjectId } from '../../utils/oid.js';
-import { getCacheValue, setCacheValue, deleteCacheValue } from '../../utils/cache.js';
+import { getCacheValue, setCacheValue, deleteCacheValue, clearCachePattern } from '../../utils/cache.js';
 import { CACHE_KEYS, CACHE_TTL } from '../../utils/cache.keys.js';
 import {
   ServiceUpsertSchema,
@@ -26,32 +26,79 @@ const CACHE_ALL = CACHE_KEYS.SERVICES_LIST;
 const CACHE_ONE = CACHE_KEYS.SERVICES_DETAIL;
 const TTL = CACHE_TTL.SHORT;
 
-// Resolve client country: explicit query param wins, then header (set by
-// Cloudflare or geo middleware), then locale fallback, then IN.
+/**
+ * Resolve the request's target country.
+ *
+ * Priority (highest first):
+ *   1. `?country=` query param  — explicit per-request override (admin/dev)
+ *   2. `req.geo.country`        — set by geo.middleware.js; authoritative for
+ *      normal requests (reads CF-IPCountry, qh_country cookie, X-Country header)
+ *   3. X-Country / CF-IPCountry request headers  — fallback when geo middleware
+ *      is not mounted (e.g. direct API calls from the frontend test harness)
+ *   4. Locale-to-country mapping on the qh_locale cookie / Accept-Language
+ *   5. Default: 'IN'
+ */
 function resolveCountry(req) {
   const fromQuery = String(req.query.country || '').toUpperCase();
   if (COUNTRIES.includes(fromQuery)) return fromQuery;
-  const fromHeader = String(req.headers['cf-ipcountry'] || req.headers['x-country'] || '').toUpperCase();
+  const fromGeo = String(req.geo?.country || '').toUpperCase();
+  if (COUNTRIES.includes(fromGeo)) return fromGeo;
+  const fromHeader = String(req.headers['x-country'] || req.headers['cf-ipcountry'] || '').toUpperCase();
   if (COUNTRIES.includes(fromHeader)) return fromHeader;
   const locale = String(req.cookies?.qh_locale || req.headers['accept-language'] || '').split(',')[0].split('-')[0];
   if (LOCALE_TO_COUNTRY[locale]) return LOCALE_TO_COUNTRY[locale];
   return 'IN';
 }
 
+/**
+ * Resolve locale for the request, preferring geo middleware values.
+ */
+function resolveLocale(req) {
+  return String(req.geo?.lang || req.cookies?.qh_locale || 'en');
+}
+
 // Strip pricing[] entries that don't apply to the resolved country, while
 // keeping the legacy flat fields untouched. Also flatten an i18n name/desc
 // down to the request's locale so the wire stays small.
+// Helper: pick a locale string from a value that may be a plain string or
+// an i18n object {en, hi, ar, de, ...}.
+function pickLocale(v, locale) {
+  if (!v) return v;
+  if (typeof v === 'string') return v;
+  if (typeof v === 'object' && !Array.isArray(v)) {
+    return v[locale] || v.en || Object.values(v).find(Boolean) || '';
+  }
+  return v;
+}
+
 function projectForCountry(service, country, locale = 'en') {
   if (!service) return service;
   const out = { ...service };
 
-  // Localize i18n strings to a flat string for older clients
+  // Localise i18n name/description to a flat string for the requested locale.
+  // The original i18n object is preserved under the *I18n key so clients that
+  // need all translations (e.g. admin edit) can still access them.
   for (const f of ['name', 'description']) {
     const v = out[f];
     if (v && typeof v === 'object' && !Array.isArray(v)) {
       out[`${f}I18n`] = v;
-      out[f] = v[locale] || v.en || Object.values(v)[0];
+      out[f] = pickLocale(v, locale);
     }
+  }
+
+  // Localise technology names.  Each technology may be a plain string (legacy)
+  // or a rich object { name, en, hi, ... } created by the new admin form.
+  if (Array.isArray(out.technologies)) {
+    out.technologies = out.technologies.map((t) => {
+      if (!t || typeof t === 'string') return t;
+      // Rich object — flatten to the locale string
+      return pickLocale(t, locale) || t.name || t.en || '';
+    });
+  }
+
+  // Localise notIncluded items if they ever become i18n-shaped
+  if (Array.isArray(out.notIncluded)) {
+    out.notIncluded = out.notIncluded.map((item) => pickLocale(item, locale));
   }
 
   if (Array.isArray(out.pricing)) {
@@ -59,27 +106,53 @@ function projectForCountry(service, country, locale = 'en') {
     out.activePricing = match || null;
     out.supportedCountries = listSupportedCountries(out);
   }
+
+  // Attach country-specific hourly rate from the geo_pricing collection so
+  // the customer-facing service object already contains the right price.
+  // This is done asynchronously only when serving the detail endpoint; for
+  // the list endpoint it's done inline below.
+
   return out;
 }
 
 r.get('/', asyncHandler(async (req, res) => {
   const country = resolveCountry(req);
-  const locale = String(req.cookies?.qh_locale || 'en');
-  const cacheKey = `${CACHE_ALL}:${country}:${locale}`;
+  const locale  = resolveLocale(req);
+
+  // Admin/internal callers can pass ?includeUnavailable=true to see services
+  // that have no active pricing for the resolved country (e.g. for content admin).
+  const includeUnavailable = req.query.includeUnavailable === 'true';
+
+  // Cache key encodes country, locale, and the availability filter so each
+  // variant is cached independently.
+  const cacheKey = `${CACHE_ALL}:${country}:${locale}${includeUnavailable ? ':all' : ''}`;
 
   const cached = await getCacheValue(cacheKey);
   if (cached) return res.json({ success: true, data: cached, country, cached: true });
 
   const items = await col().find({ active: { $ne: false } }).toArray();
-  const projected = items.map((s) => projectForCountry(s, country, locale));
+
+  // Project each service for the resolved country/locale — adds activePricing,
+  // supportedCountries, and localised name/description fields.
+  let projected = items.map((s) => projectForCountry(s, country, locale));
+
+  // Drop services with no active pricing for this country unless explicitly
+  // requested.  Services with legacy flat pricing (no pricing[]) are kept as-is.
+  if (!includeUnavailable) {
+    projected = projected.filter((s) => {
+      if (!Array.isArray(s.pricing)) return true; // legacy flat-pricing service — keep
+      return s.activePricing !== null;
+    });
+  }
+
   await setCacheValue(cacheKey, projected, TTL);
-  res.json({ success: true, data: projected, country });
+  res.json({ success: true, data: projected, country, total: projected.length });
 }));
 
 r.get('/:id', asyncHandler(async (req, res) => {
   const raw = req.params.id;
   const country = resolveCountry(req);
-  const locale = String(req.cookies?.qh_locale || 'en');
+  const locale  = resolveLocale(req);
   const cacheKey = `${CACHE_ONE(raw)}:${country}:${locale}`;
 
   const cached = await getCacheValue(cacheKey);
@@ -108,6 +181,25 @@ r.get('/:id', asyncHandler(async (req, res) => {
   if (!svc) throw new AppError('RESOURCE_NOT_FOUND', 'Service not found', 404);
 
   const projected = projectForCountry(svc, country, locale);
+
+  // Overlay country-specific hourly rate from the geo_pricing collection.
+  // This ensures HoursStep and SummaryStep see the correct price without a
+  // second round-trip to /geo-pricing/price/:id.
+  try {
+    const geo = await getDb().collection('geo_pricing').findOne(
+      { serviceId: svc._id, country },
+      { projection: { basePrice: 1, currency: 1 } },
+    );
+    if (geo?.basePrice > 0) {
+      projected.geoPrice     = geo.basePrice;
+      projected.geoCurrency  = geo.currency;
+      // Also update the embedded pricing object so existing code paths that
+      // read service.pricing.hourly automatically get the right rate.
+      projected.pricing = { ...(projected.pricing || {}), hourly: geo.basePrice, currency: geo.currency };
+      projected.hourlyRate = geo.basePrice;
+    }
+  } catch { /* geo_pricing lookup failure must never break the main response */ }
+
   await setCacheValue(cacheKey, projected, TTL);
   res.json({ success: true, data: projected, country });
 }));
@@ -175,11 +267,18 @@ r.delete('/:id', roleGuard(['admin']), asyncHandler(async (req, res) => {
 }));
 
 async function invalidateCache(id) {
-  // Country-projected cache keys live under the same namespace prefix, so
-  // just publish + clear the legacy keys; per-country reads will repopulate.
-  const keysToDelete = [CACHE_ALL];
-  if (id) keysToDelete.push(CACHE_ONE(id));
-  await deleteCacheValue(keysToDelete);
+  // Service list cache is stored under per-country/locale keys:
+  //   services:list:IN:en, services:list:AE:ar, …
+  // Use pattern delete to wipe all variants at once.
+  await clearCachePattern(`${CACHE_ALL}:*`);
+
+  if (id) {
+    // Similarly for per-service detail keys: services:detail:<id>:IN:en, …
+    await clearCachePattern(`${CACHE_ONE(id)}:*`);
+    // Also clear the bare key in case it was written by older code.
+    await deleteCacheValue(CACHE_ONE(id));
+  }
+
   await publish('services.invalidated', { id });
 }
 

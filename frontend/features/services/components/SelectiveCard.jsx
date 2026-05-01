@@ -12,19 +12,25 @@ const SelectiveCard = ({ serviceData, isLoading }) => {
   const tServiceDetails = useTranslations("serviceDetails");
   const tCms = useCmsTranslate();
   // No longer fetching data here - receiving it as props
-  console.log("SelectiveCard serviceData:", serviceData);
 
-  // Get technologies dynamically from API — handles both string[] and object[]
-  const engineers = (serviceData?.technologies || []).map((tech) =>
-    typeof tech === 'string' ? tech : tech?.name || tech?.id || ''
-  ).filter(Boolean);
+  // Get technologies dynamically from API — handles both plain strings and
+  // rich i18n objects { name, en, hi, … }. tCms picks the active locale so
+  // tech chip labels update immediately when the user switches language.
+  const engineers = (serviceData?.technologies || []).map((tech) => {
+    if (!tech) return '';
+    if (typeof tech === 'string') return tCms(tech);
+    // Rich object — prefer nameI18n (raw multi-locale) → then the object itself
+    return tCms(tech?.nameI18n || tech) || tech?.name || tech?.en || tech?.id || '';
+  }).filter(Boolean);
 
-  // Get notIncluded items dynamically from API, with fallback for empty array
+  // Get notIncluded items dynamically from API, with fallback for empty array.
+  // tCms translates plain strings via CMS map and i18n objects via locale pick.
   const notIncluded =
     serviceData?.notIncluded?.length > 0
-      ? serviceData.notIncluded.map((item) =>
-          typeof item === 'string' ? item : item?.name || item?.id || ''
-        ).filter(Boolean)
+      ? serviceData.notIncluded.map((item) => {
+          if (!item) return '';
+          return typeof item === 'string' ? tCms(item) : tCms(item) || item?.name || item?.id || '';
+        }).filter(Boolean)
       : [
           "Software licenses or paid third-party tools",
           "Support beyond timelines",

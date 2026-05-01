@@ -322,3 +322,62 @@ body.terms-page {
   max-height: 100vh;
 }
 
+/* ─── RTL support ─────────────────────────────────────────────────────────── */
+
+/**
+ * 1. Arabic body font — system stack preferred; Open Sauce One (Latin-only)
+ *    falls back gracefully for Arabic characters.
+ */
+[dir="rtl"] body {
+  font-family: 'Segoe UI', Tahoma, 'Noto Sans Arabic', 'Cairo', Arial, sans-serif;
+}
+
+/**
+ * 2. Hero section — the `.readybg` rule uses hardcoded `padding-left`/`padding-right`.
+ *    Flip to logical equivalents in RTL so the hero text appears on the correct side.
+ */
+[dir="rtl"] .readybg {
+  padding-inline-start: 0;
+  padding-inline-end: 30px;
+  text-align: end;
+}
+
+@media (max-width: 640px) {
+  [dir="rtl"] .readybg {
+    padding-inline-end: 0;
+    text-align: center;
+  }
+}
+
+/**
+ * 3. Smart background strip — mirrors the background gradient for RTL markets
+ *    so the image/illustration stays on the correct (inline-end) side.
+ */
+[dir="rtl"] .smaterbg {
+  justify-content: flex-start;
+  background: linear-gradient(to left, #26472b 0%, #26472c 100%);
+}
+
+/**
+ * 4. MUI Tooltip — ensure tooltips use text-align: start in RTL.
+ */
+[dir="rtl"] .MuiTooltip-tooltip {
+  text-align: right;
+}
+
+/**
+ * 5. Prose content (legal docs in LegalAcceptanceProvider modal) — inherit
+ *    document direction so Arabic legal text renders correctly.
+ */
+[dir="rtl"] .prose {
+  direction: rtl;
+  text-align: start;
+}
+
+/**
+ * 6. Fix Tailwind animate-in slide utilities for RTL — the default
+ *    `slide-in-from-top-*` does not need changes; only horizontal slides do.
+ *    These classes are used in CountrySwitcher & LocaleCurrencySwitcher dropdowns.
+ *    The dropdowns are already anchored with `end-0` so no transform override needed.
+ */
+

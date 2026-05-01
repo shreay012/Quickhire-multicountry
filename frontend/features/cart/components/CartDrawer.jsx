@@ -31,9 +31,7 @@ const CartDrawer = ({ isOpen, onClose, jobData, onRefresh }) => {
 
   useEffect(() => {
     if (jobData && jobData.data) {
-      // Extract services array from job data - API returns data.job.services
       const services = jobData.data.job?.services || [];
-      console.log("📦 Cart items loaded:", services);
       setCartItems(services);
     } else {
       setCartItems([]);
@@ -67,7 +65,6 @@ const CartDrawer = ({ isOpen, onClose, jobData, onRefresh }) => {
   }, []);
 
   const handleRemoveItem = (id) => {
-    console.log("🗑️ Remove item with id:", id);
     setItemToDelete(id);
     setShowDeleteModal(true);
   };
@@ -79,31 +76,21 @@ const CartDrawer = ({ isOpen, onClose, jobData, onRefresh }) => {
       setIsProcessing(true);
       const jobId = jobData.data.job._id || jobData.data.job.id;
 
-      console.log("🗑️ Deleting service:", itemToDelete);
-      console.log("📌 Job ID:", jobId);
-
-      // Call API to remove service from job
-      const response = await bookingService.updateJob(jobId, {
+      await bookingService.updateJob(jobId, {
         removeServiceIds: [itemToDelete],
       });
 
       dispatch(fetchDashboardStats());
-
-      console.log("✅ Service deleted:", response.data);
-
-      // Remove item from local state
       setCartItems(cartItems.filter((item) => item._id !== itemToDelete));
 
       // Refresh cart data by calling parent's refresh function
       if (onRefresh) {
-        console.log("🔄 Refreshing cart...");
         await onRefresh();
       }
 
       setShowDeleteModal(false);
       setItemToDelete(null);
-    } catch (error) {
-      console.error("❌ Error deleting service:", error);
+    } catch {
       showError("Failed to delete service. Please try again.");
       setShowDeleteModal(false);
       setItemToDelete(null);
@@ -131,7 +118,7 @@ const CartDrawer = ({ isOpen, onClose, jobData, onRefresh }) => {
     return bookingType === "instant" ? t("instant") : t("scheduleLater");
   };
 
-  // Handle Proceed to Checkout - Razorpay Integration
+  // Handle Proceed to Checkout — multi-gateway (mock / razorpay / stripe)
   const handleProceedToCheckout = async (e) => {
     e.preventDefault();
 
@@ -140,102 +127,89 @@ const CartDrawer = ({ isOpen, onClose, jobData, onRefresh }) => {
       return;
     }
 
+    const jobId = jobData.data.job.id;
+    const amount = jobData.data.job.pricing.totalPriceWithGst;
+
     try {
       setIsProcessing(true);
 
-      // Extract jobId and amount from cart data
-      const jobId = jobData.data.job.id;
-      const amount = jobData.data.job.pricing.totalPriceWithGst;
-
-      console.log("💳 Creating payment order...", { jobId, amount });
-
-      // Step 1: Call create order API
       const orderResponse = await paymentService.createOrder(jobId, amount);
+      const paymentData = orderResponse.data?.data || orderResponse.data;
+      const gateway = paymentData.gateway || "razorpay";
 
-      console.log("✅ Order created:", orderResponse.data);
+      if (gateway === "mock") {
+        // Backend auto-confirmed — just navigate to success
+        await new Promise((r) => setTimeout(r, 400));
+        localStorage.removeItem("_current_job_id");
+        localStorage.removeItem("_pricing_data");
+        onClose();
+        router.push(`/payment-success?jobId=${jobId}`);
+        return;
+      }
 
-      // Extract payment data from response
-      const paymentData = orderResponse.data.data;
+      if (gateway === "stripe") {
+        const key = paymentData.stripePublishableKey ||
+          process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY;
+        if (!key) throw new Error("Stripe publishable key not configured");
+        const { loadStripe } = await import("@stripe/stripe-js");
+        const stripe = await loadStripe(key);
+        if (!stripe) throw new Error("Failed to load Stripe.js");
+        const { error: stripeErr } = await stripe.confirmPayment({
+          clientSecret: paymentData.clientSecret,
+          confirmParams: {
+            return_url: `${window.location.origin}/payment-success?jobId=${jobId}`,
+          },
+          redirect: "if_required",
+        });
+        if (stripeErr) throw new Error(stripeErr.message);
+        await paymentService.confirmStripePayment(paymentData.orderId);
+        localStorage.removeItem("_current_job_id");
+        localStorage.removeItem("_pricing_data");
+        onClose();
+        router.push(`/payment-success?jobId=${jobId}`);
+        return;
+      }
 
-      // Step 2: Configure Razorpay options
-      const razorpayOptions = {
-        key: paymentData.keyId, // Razorpay key from API response
-        amount: paymentData.amount * 100, // Amount in paise
-        currency: paymentData.currency, // Currency (INR)
-        name: "QuickHire",
-        description: "Service Booking Payment",
-        order_id: paymentData.razorpayOrderId, // Razorpay order ID
-
-        // Payment success handler
-        handler: async function (response) {
-          console.log("💰 Payment successful:", response);
-
-          // Check payment status
-          try {
-            const statusResponse = await paymentService.getPaymentStatus(
-              paymentData.paymentId,
-            );
-            console.log("📊 Payment status:", statusResponse.data);
-
-            // Clear payment-related data from localStorage
+      // Razorpay (default)
+      await new Promise((resolve, reject) => {
+        const options = {
+          key: paymentData.keyId || paymentData.key,
+          amount: paymentData.amount,        // already in paise from backend
+          currency: paymentData.currency || "INR",
+          name: "QuickHire",
+          description: "Service Booking Payment",
+          order_id: paymentData.razorpayOrderId || paymentData.orderId,
+          handler: async () => {
             localStorage.removeItem("_current_job_id");
             localStorage.removeItem("_pricing_data");
-            console.log("🧹 Cleared payment data from localStorage");
-
-            // Close cart drawer
             onClose();
-
-            // Navigate to success page
             router.push(`/payment-success?jobId=${jobId}`);
-
-            // Optional: Redirect to success page
-            // window.location.href = '/booking-success';
-          } catch (error) {
-            console.error("❌ Error checking payment status:", error);
-            showError(
-              "Payment completed but status check failed. Please contact support.",
-            );
-          }
-        },
-
-        // Prefill user details
-        prefill: {
-          name: paymentData.userDetails?.name || "",
-          email: paymentData.userDetails?.email || "",
-          contact: paymentData.userDetails?.mobile || "",
-        },
-
-        // Notes (optional)
-        notes: {
-          jobId: jobId,
-          bookingType: paymentData.bookingType,
-        },
-
-        // Theme customization
-        theme: {
-          color: "#45A735",
-        },
-
-        // Modal settings
-        modal: {
-          ondismiss: function () {
-            console.log("⚠️ Payment cancelled by user");
-            setIsProcessing(false);
+            resolve();
           },
-        },
-      };
-
-      // Step 4: Open Razorpay checkout
-      if (window.Razorpay) {
-        const razorpay = new window.Razorpay(razorpayOptions);
-        razorpay.open();
-        setIsProcessing(false);
-      } else {
-        throw new Error("Razorpay SDK not loaded");
+          prefill: {
+            name: paymentData.userDetails?.name || "",
+            email: paymentData.userDetails?.email || "",
+            contact: paymentData.userDetails?.mobile || "",
+          },
+          notes: { jobId, bookingType: paymentData.bookingType },
+          theme: { color: "#45A735" },
+          modal: { ondismiss: () => { setIsProcessing(false); resolve(); } },
+        };
+        if (!window.Razorpay) { reject(new Error("Razorpay SDK not loaded")); return; }
+        const rzp = new window.Razorpay(options);
+        rzp.on("payment.failed", (resp) =>
+          reject(new Error(resp?.error?.description || "Payment failed"))
+        );
+        rzp.open();
+      });
+    } catch (err) {
+      if (err?.message !== "dismissed") {
+        showError(
+          err?.response?.data?.message ||
+          err?.message ||
+          "Failed to initiate payment. Please try again."
+        );
       }
-    } catch (error) {
-      console.error("❌ Error creating payment order:", error);
-      showError("Failed to initiate payment. Please try again.");
       setIsProcessing(false);
     }
   };
@@ -260,7 +234,7 @@ const CartDrawer = ({ isOpen, onClose, jobData, onRefresh }) => {
               {/* Close Button - Top Right */}
               <button
                 onClick={cancelRemoveItem}
-                className="absolute top-4 right-4 text-gray-500 hover:text-gray-700 transition-colors"
+                className="absolute top-4 end-4 text-gray-500 hover:text-gray-700 transition-colors"
                 aria-label="Close modal"
               >
                 <CloseIcon sx={{ fontSize: 24 }} />
@@ -325,18 +299,21 @@ const CartDrawer = ({ isOpen, onClose, jobData, onRefresh }) => {
         />
       )}
 
-      {/* Drawer */}
+      {/* Drawer
+          end-0 = inset-inline-end (right in LTR, left in RTL).
+          When closed: slide out toward the inline-end edge in each direction.
+      */}
       <div
         className={`
-          fixed top-0 right-0 h-full w-full sm:w-[550px] md:w-[600px] lg:w-[600px] bg-white z-[70]
+          fixed top-0 end-0 h-full w-full sm:w-[550px] md:w-[600px] lg:w-[600px] bg-white z-[70]
           transform transition-transform duration-300 ease-in-out
           flex flex-col
-          ${isOpen ? "translate-x-0 shadow-2xl" : "translate-x-full"}
+          ${isOpen ? "translate-x-0 shadow-2xl" : "ltr:translate-x-full rtl:-translate-x-full"}
         `}
       >
-        {/* Close Button - Positioned outside on left */}
+        {/* Close Button - outside the drawer on the inline-start edge */}
         {isOpen && (
-          <div className="absolute top-4 -left-14 z-10">
+          <div className="absolute top-4 -start-14 z-10">
             <IconButton
               onClick={onClose}
               sx={{
@@ -426,10 +403,10 @@ const CartDrawer = ({ isOpen, onClose, jobData, onRefresh }) => {
                         "linear-gradient(0.01deg, #FFFFFF 0.01%, #F0FFEE 99.99%)",
                     }}
                   >
-                    {/* Delete Icon - Top Right */}
+                    {/* Delete Icon - top inline-end corner */}
                     <button
                       onClick={() => handleRemoveItem(item._id)}
-                      className="absolute top-4 right-4 hover:opacity-70 transition-opacity"
+                      className="absolute top-4 end-4 hover:opacity-70 transition-opacity"
                       aria-label="Remove item"
                     >
                       <Image

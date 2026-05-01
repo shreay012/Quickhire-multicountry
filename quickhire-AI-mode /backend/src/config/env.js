@@ -30,6 +30,10 @@ const schema = z.object({
   RAZORPAY_KEY_SECRET: z.string().optional(),
   RAZORPAY_WEBHOOK_SECRET: z.string().optional(),
 
+  STRIPE_SECRET_KEY: z.string().optional(),
+  STRIPE_WEBHOOK_SECRET: z.string().optional(),
+  STRIPE_PUBLISHABLE_KEY: z.string().optional(),
+
   OTP_LENGTH: z.coerce.number().default(4),
   OTP_TTL_SECONDS: z.coerce.number().default(300),
   SMS_PROVIDER: z.enum(['mock', 'msg91', 'sns']).default('mock'),

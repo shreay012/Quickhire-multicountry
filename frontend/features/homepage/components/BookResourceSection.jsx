@@ -7,52 +7,12 @@ import { useAppDispatch, useAppSelector } from "@/lib/redux/store/hooks";
 import { fetchAllServices } from "@/lib/redux/slices/discoverSlice/discoverserviceSlice";
 import { useTranslations } from "next-intl";
 
-const cards = [
-  {
-    title: "Ai Engineer",
-    description:
-      "Ai Automation | Ai Chatbot Development | Model training | NLP solutions | Ai integrations",
-    icon: "/images/resource-services/ai.svg",
-  },
-  {
-    title: "Developer",
-    description:
-      "Website development | App development | API development | Admin panels | Custom software",
-    icon: "/images/resource-services/developer.svg",
-  },
-  {
-    title: "Designer",
-    description: "App UI | Website UI | UX flows | Landing pages | Prototypes",
-    icon: "/images/resource-services/designer.svg",
-  },
-  {
-    title: "Security",
-    description:
-      "Vulnerability scan | Pen testing | Data protection | Login security | Cloud security",
-    icon: "/images/resource-services/security.svg",
-  },
-  {
-    title: "Quality Assurance",
-    description:
-      "Manual testing | Automation testing | App testing | Web testing | Bug reporting",
-    icon: "/images/resource-services/quality.svg",
-  },
-  {
-    title: "DevOps",
-    description:
-      "CI/CD setup | Deployment automation | Server optimization | Monitoring setup | Scaling support",
-    icon: "/images/resource-services/devops.svg",
-  },
-];
-
 const BookResourceSection = () => {
   const t = useTranslations("bookExperts");
   const dispatch = useAppDispatch();
   const { allServices, isLoading, error } = useAppSelector(
     (state) => state.services,
   );
-
-  console.log("allServices:", allServices);
 
   useEffect(() => {
     dispatch(fetchAllServices());

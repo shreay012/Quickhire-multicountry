@@ -4,6 +4,7 @@ import { useState } from "react";
 import PhoneIcon from "@mui/icons-material/Phone";
 import MailIcon from "@mui/icons-material/Mail";
 import { useTranslations } from "next-intl";
+import { miscellaneousService } from "@/lib/services/miscellaneousApi";
 
 export default function ContactUs() {
   const t = useTranslations("contactUs");
@@ -31,6 +32,8 @@ export default function ContactUs() {
   });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitSuccess, setSubmitSuccess] = useState(false);
+  const [submitError, setSubmitError] = useState(null);
   const [charCount, setCharCount] = useState(0);
   const maxChars = 500;
 
@@ -72,13 +75,21 @@ export default function ContactUs() {
     setErrors(newErrors);
 
     const hasErrors = Object.values(newErrors).some((error) => error);
+    if (hasErrors) return;
 
-    if (!hasErrors) {
-      alert(t("successMsg"));
+    setIsSubmitting(true);
+    setSubmitError(null);
+    try {
+      await miscellaneousService.contactUs(formData);
+      setSubmitSuccess(true);
       setFormData({ name: "", email: "", phone: "", organization: "", description: "" });
       setCharCount(0);
       setTouched({ name: false, email: false, phone: false, description: false });
       setErrors({ name: false, email: false, phone: false, description: false });
+    } catch (err) {
+      setSubmitError(t("submitError") || "Something went wrong. Please try again.");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -226,6 +237,16 @@ export default function ContactUs() {
                     </div>
                   </div>
 
+                  {submitSuccess && (
+                    <div className="rounded-lg bg-green-50 border border-green-200 px-4 py-3 text-green-800 text-sm font-medium">
+                      {t("successMsg")}
+                    </div>
+                  )}
+                  {submitError && (
+                    <div className="rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-red-700 text-sm font-medium">
+                      {submitError}
+                    </div>
+                  )}
                   <button
                     type="submit"
                     disabled={isSubmitting}

@@ -43,7 +43,8 @@ export default async function RootLayout({ children }) {
       <body className="antialiased" suppressHydrationWarning>
         <NextIntlClientProvider locale={locale} messages={messages}>
           <ReduxProvider>
-            <ThemeRegistry>
+            {/* Pass dir so MUI theme is created with the correct direction SSR */}
+            <ThemeRegistry dir={dir}>
               <ClientProviders>
                 <LayoutWrapper>{children}</LayoutWrapper>
               </ClientProviders>

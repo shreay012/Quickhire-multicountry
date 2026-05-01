@@ -3,7 +3,11 @@
 import { useRef, useEffect } from "react";
 import { useParams } from "next/navigation";
 import { useAppDispatch, useAppSelector } from "@/lib/redux/store/hooks";
-import { fetchServiceById } from "@/lib/redux/slices/discoverSlice/discoverserviceSlice";
+import {
+  fetchServiceById,
+  setSelectedService,
+} from "@/lib/redux/slices/discoverSlice/discoverserviceSlice";
+import { selectLocale } from "@/lib/redux/slices/regionSlice/regionSlice";
 
 import { LeftComponent, RightComponent } from "@/features/services/components";
 import CustomProgressScrollbar from "@/components/ui/CustomProgressScrollbar";
@@ -14,36 +18,65 @@ export default function ServiceDetailsPage() {
   const { id } = params;
 
   const dispatch = useAppDispatch();
-  const { selectedService, isLoadingDetail } = useAppSelector((state) => state.services);
+  const { selectedService, error: serviceError } = useAppSelector((state) => state.services);
+  // Watch the active locale so we re-fetch with fresh translations whenever
+  // the user switches language (the backend resolves locale from X-Lang header
+  // sent by axiosInstance on every request).
+  const locale = useAppSelector(selectLocale);
+
+  // Track whether this is the very first mount so we only seed from
+  // sessionStorage once — not every time the locale changes.
+  const seededRef = useRef(false);
 
   useEffect(() => {
-    if (id) {
-      // Try to get service from sessionStorage first (fast)
+    if (!id) return;
+    // Pre-seed Redux from sessionStorage on first load only so the page can
+    // render immediately without waiting for the network round-trip.
+    if (!seededRef.current) {
+      seededRef.current = true;
       const cached = typeof window !== "undefined"
         ? sessionStorage.getItem("selectedService")
         : null;
       if (cached) {
         try {
           const parsed = JSON.parse(cached);
-          if (parsed?._id === id) {
-            // Already in Redux via sessionStorage — also fetch fresh from API
-            dispatch(fetchServiceById(id));
-            return;
+          if (String(parsed?._id) === String(id)) {
+            dispatch(setSelectedService(parsed));
           }
         } catch {}
       }
-      dispatch(fetchServiceById(id));
     }
-  }, [id, dispatch]);
+    // Fetch fresh data — runs on initial mount AND whenever locale changes,
+    // ensuring the left section re-renders in the newly selected language.
+    dispatch(fetchServiceById(id));
+  }, [id, locale, dispatch]);
 
-  const service = selectedService || null;
+  // Only use selectedService if it matches the current page id — prevents
+  // briefly showing a previous service's content while the new one loads.
+  const service = String(selectedService?._id) === String(id) ? selectedService : null;
 
-  if (isLoadingDetail && !service) {
+  // Show spinner while we have no data and no error.  Once `service` is
+  // populated (from either sessionStorage seed or the API fetch) the spinner
+  // disappears and children render with real data.
+  const showSpinner = !service && !serviceError;
+
+  if (showSpinner) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
           <div className="w-10 h-10 border-4 border-[#45A735] border-t-transparent rounded-full animate-spin mx-auto mb-3" />
           <p className="text-[#636363]">Loading service details...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (serviceError && !service) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <p className="text-red-500 mb-2 font-semibold">Service not found</p>
+          <p className="text-[#636363] text-sm">This service may no longer be available.</p>
         </div>
       </div>
     );

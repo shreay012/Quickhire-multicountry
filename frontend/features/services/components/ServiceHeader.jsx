@@ -3,10 +3,14 @@
 import React from "react";
 import { Box, Typography } from "@mui/material";
 import Image from "next/image";
+import { useTranslations } from "next-intl";
+import { useCmsTranslate } from "@/lib/i18n/useCmsTranslate";
 
 const ServiceHeader = ({ serviceData, isLoading }) => {
-  // No longer fetching data here - receiving it as props
-  console.log("ServiceHeader serviceData:", serviceData);
+  const t = useTranslations("serviceHeader");
+  // tCms picks the active locale from both raw i18n objects {en,hi,…} AND
+  // CMS string maps — so name/description update instantly when locale changes.
+  const tCms = useCmsTranslate();
 
   const features = [
     {
@@ -18,7 +22,7 @@ const ServiceHeader = ({ serviceData, isLoading }) => {
           height={24}
         />
       ),
-      text: "400+ Verified professionals",
+      text: t("feature1"),
     },
     {
       icon: (
@@ -29,7 +33,7 @@ const ServiceHeader = ({ serviceData, isLoading }) => {
           height={24}
         />
       ),
-      text: "Enterprise-grade security",
+      text: t("feature2"),
     },
     {
       icon: (
@@ -40,7 +44,7 @@ const ServiceHeader = ({ serviceData, isLoading }) => {
           height={24}
         />
       ),
-      text: "Transparent hourly pricing",
+      text: t("feature3"),
     },
     {
       icon: (
@@ -51,7 +55,7 @@ const ServiceHeader = ({ serviceData, isLoading }) => {
           height={24}
         />
       ),
-      text: "Dedicated project manager",
+      text: t("feature4"),
     },
   ];
 
@@ -87,7 +91,7 @@ const ServiceHeader = ({ serviceData, isLoading }) => {
                 color: "var(--dark-text-primary)",
               }}
             >
-              {serviceData?.name || "AI Engineer"}
+              {tCms(serviceData?.nameI18n || serviceData?.name) || "AI Engineer"}
             </Typography>
           </Box>
         </div>
@@ -107,8 +111,8 @@ const ServiceHeader = ({ serviceData, isLoading }) => {
               lineHeight: 1.2,
             }}
           >
-            Get verified AI experts ready to start in{" "}
-            <span style={{ color: "#45A735" }}>minutes</span>
+            {t("heading", { service: tCms(serviceData?.nameI18n || serviceData?.name) || "" })}{" "}
+            <span style={{ color: "#45A735" }}>{t("headingHighlight")}</span>
           </Typography>
         </div>
 
@@ -122,8 +126,7 @@ const ServiceHeader = ({ serviceData, isLoading }) => {
               margin: "0 auto",
             }}
           >
-            Connect with top-tier professionals who can solve your challenges
-            with speed and expertise.
+            {tCms(serviceData?.descriptionI18n || serviceData?.description) || t("subheading")}
           </Typography>
         </div>
 

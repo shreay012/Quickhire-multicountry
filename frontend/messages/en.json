@@ -441,7 +441,12 @@
   },
   "aboutUs": {
     "whoWeServeTitle": "Who We Serve",
-    "whoWeServeSubtitle": "QuickHire delivers specialized technical talent for critical growth periods and time-sensitive initiatives."
+    "whoWeServeSubtitle": "QuickHire delivers specialized technical talent for critical growth periods and time-sensitive initiatives.",
+    "readySection": {
+      "title": "Ready to hire smarter?",
+      "subtitle": "Connect with a verified tech professional in 10 minutes.",
+      "cta": "Get Started Now"
+    }
   },
   "carousel": {
     "title": "From chaos to tech talent selection - zero delays.",
@@ -474,6 +479,7 @@
     "submit": "Submit",
     "submitting": "Submitting...",
     "successMsg": "Message sent! We will get back to you shortly.",
+    "submitError": "Something went wrong. Please try again.",
     "getInTouch": "Get In Touch",
     "getInTouchDesc": "Reach out to us directly through any of these channels",
     "phoneLabel": "Phone",
@@ -692,5 +698,35 @@
     "subtitle": "Tell us what you're trying to build or fix, and we'll match you with the right expert.",
     "cta": "Find Right Expert",
     "ctaPlural": "Find Right Experts"
+  },
+  "serviceHeader": {
+    "heading": "Get verified experts ready to start in",
+    "headingHighlight": "minutes",
+    "subheading": "Connect with top-tier professionals who can solve your challenges with speed and expertise.",
+    "feature1": "400+ Verified professionals",
+    "feature2": "Enterprise-grade security",
+    "feature3": "Transparent hourly pricing",
+    "feature4": "Dedicated project manager"
+  },
+  "serviceFaq": {
+    "headingPart1": "Frequently",
+    "headingHighlight": "Asked",
+    "headingPart2": "Questions",
+    "q1": "Why should I hire through QuickHire instead of freelancers or traditional hiring?",
+    "a1": "QuickHire offers vetted professionals, instant availability, dedicated project management, and guaranteed quality. Unlike freelancers, our experts are pre-screened and managed, ensuring reliability and accountability.",
+    "q2": "Can I extend the work if I need more time?",
+    "a2": "Yes, you can easily extend your engagement. Simply reach out to your dedicated TPM or use your dashboard to request an extension. We offer flexible engagement options to accommodate your project needs.",
+    "q3": "Can I hire multiple resources at once?",
+    "a3": "Absolutely! QuickHire allows you to scale your team by hiring multiple resources simultaneously. Whether you need a full development team or specialists across different domains, we can provide coordinated resources."
+  },
+  "resource": {
+    "dashboard": {
+      "title": "My Workspace",
+      "subtitle": "Your active and completed work",
+      "activeAssignments": "Active Assignments",
+      "completed": "Completed",
+      "hoursLogged": "Hours Logged",
+      "lifetime": "lifetime"
+    }
   }
 }

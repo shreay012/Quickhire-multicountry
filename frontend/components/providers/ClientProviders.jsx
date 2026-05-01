@@ -2,15 +2,21 @@
 
 import { Toaster } from 'react-hot-toast';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
+import { LegalAcceptanceProvider } from './LegalAcceptanceProvider';
 
 /**
  * Client-only providers wrapper.
  * Keeps layout.jsx (server component) free of client imports.
+ *
+ * Provider order (inner-most first):
+ *   ErrorBoundary → LegalAcceptanceProvider → children
  */
 export default function ClientProviders({ children }) {
   return (
     <ErrorBoundary>
-      {children}
+      <LegalAcceptanceProvider>
+        {children}
+      </LegalAcceptanceProvider>
       <Toaster
         position="top-right"
         toastOptions={{

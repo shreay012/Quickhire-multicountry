@@ -1,4 +1,16 @@
-import crypto from 'crypto';
+/**
+ * Payment Routes
+ *
+ * Multi-currency, multi-gateway payment flow.
+ * Gateway selection and currency are determined by req.geo (geo middleware).
+ *
+ *   POST  /create-order       — Create a payment order / Stripe PaymentIntent
+ *   POST  /verify             — Verify Razorpay signature (Razorpay only)
+ *   POST  /stripe/confirm     — Confirm a Stripe PaymentIntent after client confirms
+ *   GET   /status/:paymentId  — Fetch payment record
+ *   GET   /history            — User's payment history
+ *   POST  /invoice/download/:jobId — Download or redirect to invoice PDF
+ */
 import { ObjectId } from 'mongodb';
 import { z } from 'zod';
 import { Router } from 'express';
@@ -16,156 +28,187 @@ import { paginate, buildMeta } from '../../utils/pagination.js';
 import { idempotencyGetOrSet } from '../../utils/idempotency.js';
 import { sqs } from '../../config/aws.js';
 import { SendMessageCommand } from '@aws-sdk/client-sqs';
+import { PaymentGatewayFactory } from './gateways/gateway.factory.js';
+import { buildInvoiceBreakdown } from '../../config/country.config.js';
 
 const r = Router();
 const col = () => getDb().collection('payments');
 const jobsCol = () => getDb().collection('jobs');
 
-// Lazy razorpay import — keeps tests/dev runnable without keys
-let _rzp;
-async function rzp() {
-  if (_rzp) return _rzp;
-  if (!env.RAZORPAY_KEY_ID || !env.RAZORPAY_KEY_SECRET) {
-    throw new AppError('CONFIG_ERROR', 'Razorpay keys not configured', 500);
-  }
-  const Razorpay = (await import('razorpay')).default;
-  _rzp = new Razorpay({ key_id: env.RAZORPAY_KEY_ID, key_secret: env.RAZORPAY_KEY_SECRET });
-  return _rzp;
-}
+/* ══════════════════════════════════════════════════════════════════
+   SCHEMAS
+══════════════════════════════════════════════════════════════════ */
 
 const createOrderSchema = z.object({
   jobId: z.string().regex(/^[0-9a-f]{24}$/),
   amount: z.number().positive(),
-});
+  promoCode: z.string().optional(),  // optional discount code
+}).strict();
 
-const verifySchema = z.object({
+const verifyRazorpaySchema = z.object({
   razorpay_payment_id: z.string(),
   razorpay_order_id: z.string(),
   razorpay_signature: z.string(),
-});
+}).strict();
+
+const confirmStripeSchema = z.object({
+  paymentIntentId: z.string().startsWith('pi_'),
+}).strict();
+
+/* ══════════════════════════════════════════════════════════════════
+   POST /create-order
+   Geo-aware: selects gateway + currency from req.geo
+══════════════════════════════════════════════════════════════════ */
 
 r.post('/create-order', roleGuard(['user']), validate(createOrderSchema), asyncHandler(async (req, res) => {
   const { jobId, amount } = req.body;
+
   const job = await jobsCol().findOne({ _id: toObjectId(jobId, 'jobId') });
   if (!job) throw new AppError('RESOURCE_NOT_FOUND', 'Job not found', 404);
 
-  // Dev mock: when Razorpay keys are missing, fabricate an order id and mark
-  // payment paid. Frontend's Razorpay handler still gets a valid-looking object.
-  if (!env.RAZORPAY_KEY_ID || !env.RAZORPAY_KEY_SECRET) {
-    const fakeOrderId = `order_dev_${Date.now()}`;
-    const fakePaymentId = `pay_dev_${Date.now()}`;
-    await col().insertOne({
-      userId: new ObjectId(req.user.id),
-      jobId: new ObjectId(jobId),
-      bookingId: job.bookingId,
-      provider: 'mock',
-      orderId: fakeOrderId,
-      paymentId: fakePaymentId,
-      amount,
-      currency: 'INR',
-      status: 'paid',
-      mock: true,
-      createdAt: new Date(), updatedAt: new Date(),
-    });
-    await jobsCol().updateOne({ _id: job._id }, { $set: { status: 'paid', updatedAt: new Date() } });
-    // Trigger admin notification + auto-assign PM (mock dev path)
-    autoAssignPm(job._id).catch((e) => logger.warn({ err: e }, 'autoAssignPm (mock) failed'));
-    return res.json({
-      success: true,
-      data: {
-        orderId: fakeOrderId,
-        razorpayOrderId: fakeOrderId,
-        paymentId: fakePaymentId,
-        keyId: 'rzp_test_mock',
-        key: 'rzp_test_mock',
-        amount: Math.round(amount * 100),
-        currency: 'INR',
-        mock: true,
-      },
-    });
-  }
+  // Geo from middleware — currency + gateway driven by user's country
+  const { country, currency } = req.geo || { country: 'IN', currency: 'INR' };
 
-  const client = await rzp();
-  const order = await client.orders.create({
-    amount: Math.round(amount * 100), // paise
-    currency: 'INR',
-    receipt: `job_${jobId}`,
-    notes: { jobId, userId: req.user.id },
+  // Invoice breakdown (tax inclusive/exclusive per country)
+  const invoice = buildInvoiceBreakdown({ subtotal: amount, code: country, currency });
+
+  // Select gateway via factory — falls back to mock in dev
+  const gateway = PaymentGatewayFactory.forCountry(country, currency);
+
+  const order = await gateway.createOrder({
+    jobId,
+    amount: invoice.total,  // charge the gross amount (includes tax)
+    currency,
+    userId: req.user.id,
+    metadata: { bookingId: job.bookingId?.toString() || '', country },
   });
 
+  // Persist payment record
   await col().insertOne({
     userId: new ObjectId(req.user.id),
     jobId: new ObjectId(jobId),
     bookingId: job.bookingId,
-    provider: 'razorpay',
-    orderId: order.id,
-    amount,
-    currency: 'INR',
+    provider: order.gatewayName,
+    orderId: order.orderId,
+    paymentId: order.paymentId,
+    amount: invoice.total,
+    currency,
+    country,
+    invoice,
     status: 'created',
-    createdAt: new Date(), updatedAt: new Date(),
+    mock: order.mock || false,
+    createdAt: new Date(),
+    updatedAt: new Date(),
   });
+
+  // Auto-complete mock payments immediately (dev only)
+  if (order.mock) {
+    await jobsCol().updateOne({ _id: job._id }, { $set: { status: 'paid', updatedAt: new Date() } });
+    autoAssignPm(job._id).catch((e) => logger.warn({ err: e }, 'autoAssignPm (mock) failed'));
+  }
 
   res.json({
     success: true,
     data: {
-      orderId: order.id,
-      razorpayOrderId: order.id,
-      keyId: env.RAZORPAY_KEY_ID,
-      key: env.RAZORPAY_KEY_ID,
+      orderId: order.orderId,
+      // Razorpay fields
+      razorpayOrderId: order.gatewayName === 'razorpay' ? order.orderId : undefined,
+      keyId: order.keyId || undefined,
+      key: order.keyId || undefined,
+      // Stripe fields
+      clientSecret: order.clientSecret || undefined,
+      stripePublishableKey: order.gatewayName === 'stripe' ? (env.STRIPE_PUBLISHABLE_KEY || '') : undefined,
+      // Common
       amount: order.amount,
-      currency: order.currency,
+      currency,
+      gateway: order.gatewayName,
+      invoice,
+      mock: order.mock || false,
     },
   });
 }));
 
-r.post('/verify', roleGuard(['user']), validate(verifySchema), asyncHandler(async (req, res) => {
+/* ══════════════════════════════════════════════════════════════════
+   POST /verify  — Razorpay client-side signature verification
+══════════════════════════════════════════════════════════════════ */
+
+r.post('/verify', roleGuard(['user']), validate(verifyRazorpaySchema), asyncHandler(async (req, res) => {
   const { razorpay_payment_id, razorpay_order_id, razorpay_signature } = req.body;
 
-  // Idempotency: if same key already processed, return prior result.
+  // Idempotency
   const idemKey = req.header('Idempotency-Key') || `${razorpay_order_id}:${razorpay_payment_id}`;
   const cached = await idempotencyGetOrSet(`pay-verify:${req.user.id}:${idemKey}`);
   if (cached) return res.json({ success: true, data: cached, idempotent: true });
 
-  // Mock mode (no real Razorpay configured): skip signature check.
-  if (!env.RAZORPAY_KEY_SECRET) {
-    logger.warn('verify: razorpay secret missing, accepting mock signature');
-  } else {
-    const expected = crypto
-      .createHmac('sha256', env.RAZORPAY_KEY_SECRET)
-      .update(`${razorpay_order_id}|${razorpay_payment_id}`)
-      .digest('hex');
-    let valid = false;
-    try {
-      valid = expected.length === razorpay_signature.length
-        && crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(razorpay_signature));
-    } catch { valid = false; }
-    if (!valid) throw new AppError('PAYMENT_VERIFICATION_FAILED', 'Invalid signature', 400);
-  }
+  // Verify signature via gateway
+  const { country } = req.geo || { country: 'IN' };
+  const gateway = PaymentGatewayFactory.forCountry(country);
+  const valid = await gateway.verifyPayment({
+    orderId: razorpay_order_id,
+    paymentId: razorpay_payment_id,
+    signature: razorpay_signature,
+  });
 
+  if (!valid) throw new AppError('PAYMENT_VERIFICATION_FAILED', 'Invalid payment signature', 400);
+
+  const payment = await _confirmPaymentRecord(razorpay_order_id, razorpay_payment_id);
+  const out = { paymentId: razorpay_payment_id, status: 'paid' };
+  await idempotencyGetOrSet(`pay-verify:${req.user.id}:${idemKey}`, out, 86400);
+  res.json({ success: true, data: out });
+}));
+
+/* ══════════════════════════════════════════════════════════════════
+   POST /stripe/confirm — Stripe server-side PaymentIntent confirmation
+   Called after Stripe.js confirms on the frontend
+══════════════════════════════════════════════════════════════════ */
+
+r.post('/stripe/confirm', roleGuard(['user']), validate(confirmStripeSchema), asyncHandler(async (req, res) => {
+  const { paymentIntentId } = req.body;
+
+  const idemKey = req.header('Idempotency-Key') || paymentIntentId;
+  const cached = await idempotencyGetOrSet(`stripe-confirm:${req.user.id}:${idemKey}`);
+  if (cached) return res.json({ success: true, data: cached, idempotent: true });
+
+  const { country } = req.geo || { country: 'AE' };
+  const gateway = PaymentGatewayFactory.forCountry(country);
+  const valid = await gateway.verifyPayment({ orderId: paymentIntentId });
+
+  if (!valid) throw new AppError('PAYMENT_VERIFICATION_FAILED', 'Stripe PaymentIntent not succeeded', 400);
+
+  const payment = await _confirmPaymentRecord(paymentIntentId, paymentIntentId);
+  const out = { paymentId: paymentIntentId, status: 'paid' };
+  await idempotencyGetOrSet(`stripe-confirm:${req.user.id}:${idemKey}`, out, 86400);
+  res.json({ success: true, data: out });
+}));
+
+/* ══════════════════════════════════════════════════════════════════
+   Shared helper — mark payment paid, confirm booking, assign PM
+══════════════════════════════════════════════════════════════════ */
+
+async function _confirmPaymentRecord(orderId, paymentId) {
   const updated = await col().findOneAndUpdate(
-    { orderId: razorpay_order_id },
-    { $set: {
-        paymentId: razorpay_payment_id,
-        signatureValid: true,
-        status: 'paid',
-        updatedAt: new Date(),
-      } },
+    { orderId },
+    { $set: { paymentId, signatureValid: true, status: 'paid', updatedAt: new Date() } },
     { returnDocument: 'after' },
   );
   const payment = updated.value || updated;
-  if (!payment) throw new AppError('RESOURCE_NOT_FOUND', 'Order not found', 404);
+  if (!payment) throw new AppError('RESOURCE_NOT_FOUND', 'Payment order not found', 404);
 
-  // Move booking to confirmed
+  // Confirm booking state machine transition
   if (payment.bookingId) {
     try {
-      await bookingService.transition(String(payment.bookingId), 'confirmed', { id: String(payment.userId), role: 'user' }, 'payment verified');
+      await bookingService.transition(
+        String(payment.bookingId),
+        'confirmed',
+        { id: String(payment.userId), role: 'user' },
+        'payment verified',
+      );
     } catch (e) {
-      // already confirmed via webhook etc; ignore invalid transitions silently
-      logger.warn({ err: e, bookingId: payment.bookingId }, 'verify transition skipped');
+      logger.warn({ err: e, bookingId: payment.bookingId }, 'booking transition skipped (already confirmed?)');
     }
   }
 
-  // Mark the underlying job as paid + auto-assign PM + notify admins
+  // Mark job as paid + auto-assign PM
   if (payment.jobId) {
     try {
       await jobsCol().updateOne(
@@ -182,20 +225,31 @@ r.post('/verify', roleGuard(['user']), validate(verifySchema), asyncHandler(asyn
   if (env.SQS_INVOICE_URL) {
     await sqs.send(new SendMessageCommand({
       QueueUrl: env.SQS_INVOICE_URL,
-      MessageBody: JSON.stringify({ paymentId: razorpay_payment_id, jobId: String(payment.jobId) }),
-    })).catch(e => logger.error({ err: e }, 'invoice enqueue failed'));
+      MessageBody: JSON.stringify({
+        paymentId,
+        jobId: String(payment.jobId),
+        currency: payment.currency,
+        country: payment.country,
+      }),
+    })).catch((e) => logger.error({ err: e }, 'invoice enqueue failed'));
   }
 
-  const out = { paymentId: razorpay_payment_id, status: 'paid' };
-  await idempotencyGetOrSet(`pay-verify:${req.user.id}:${idemKey}`, out, 86400);
-  res.json({ success: true, data: out });
-}));
+  return payment;
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   GET /status/:paymentId
+══════════════════════════════════════════════════════════════════ */
 
 r.get('/status/:paymentId', roleGuard(['user', 'admin']), asyncHandler(async (req, res) => {
   const p = await col().findOne({ paymentId: req.params.paymentId });
   if (!p) throw new AppError('RESOURCE_NOT_FOUND', 'Payment not found', 404);
   res.json({ success: true, data: p });
 }));
+
+/* ══════════════════════════════════════════════════════════════════
+   GET /history
+══════════════════════════════════════════════════════════════════ */
 
 r.get('/history', roleGuard(['user']), asyncHandler(async (req, res) => {
   const p = paginate(req.query);
@@ -207,18 +261,39 @@ r.get('/history', roleGuard(['user']), asyncHandler(async (req, res) => {
   res.json({ success: true, data: items, meta: buildMeta({ page: p.page, pageSize: p.pageSize, total }) });
 }));
 
-// Returns a PDF blob (FE asks with responseType:'blob'). For real S3-hosted invoices,
-// you'd 302-redirect or stream from S3; in mock mode we synthesize a minimal PDF.
+/* ══════════════════════════════════════════════════════════════════
+   POST /invoice/download/:jobId
+   Streams a PDF or redirects to S3-hosted invoice
+══════════════════════════════════════════════════════════════════ */
+
 r.post('/invoice/download/:jobId', roleGuard(['user', 'admin']), asyncHandler(async (req, res) => {
   const p = await col().findOne({ jobId: toObjectId(req.params.jobId, 'jobId'), status: 'paid' });
   if (!p) throw new AppError('RESOURCE_NOT_FOUND', 'No paid invoice for this job', 404);
+
+  // If the invoice was uploaded to S3, redirect
   if (p.invoice?.url) {
     return res.json({ success: true, data: { url: p.invoice.url } });
   }
-  // Minimal one-page PDF (hand-built; no external dep).
-  const text = `Invoice\nJob: ${req.params.jobId}\nAmount: INR ${p.amount}\nPayment: ${p.paymentId || p.orderId}\nStatus: ${p.status}`;
-  const lines = text.split('\n');
-  const stream = lines.map((l, i) => `BT /F1 12 Tf 50 ${760 - i * 18} Td (${l.replace(/[()\\]/g, '')}) Tj ET`).join('\n');
+
+  // Fallback: synthesize a minimal PDF (no external dep)
+  const currency = p.currency || 'INR';
+  const country = p.country || 'IN';
+  const tax = p.invoice?.tax || {};
+  const lines = [
+    `QuickHire Invoice`,
+    `Job: ${req.params.jobId}`,
+    `Country: ${country}`,
+    `Subtotal: ${currency} ${(p.invoice?.subtotal || p.amount)}`,
+    tax.name ? `${tax.name} (${(tax.rate * 100).toFixed(0)}%): ${currency} ${tax.amount}` : '',
+    `Total: ${currency} ${p.amount}`,
+    `Payment ID: ${p.paymentId || p.orderId}`,
+    `Status: ${p.status}`,
+  ].filter(Boolean);
+
+  const stream = lines
+    .map((l, i) => `BT /F1 12 Tf 50 ${760 - i * 20} Td (${l.replace(/[()\\]/g, '')}) Tj ET`)
+    .join('\n');
+
   const objs = [];
   objs.push('1 0 obj << /Type /Catalog /Pages 2 0 R >> endobj');
   objs.push('2 0 obj << /Type /Pages /Kids [3 0 R] /Count 1 >> endobj');
@@ -226,6 +301,7 @@ r.post('/invoice/download/:jobId', roleGuard(['user', 'admin']), asyncHandler(as
   const content = `<< /Length ${stream.length} >>\nstream\n${stream}\nendstream`;
   objs.push(`4 0 obj ${content} endobj`);
   objs.push('5 0 obj << /Type /Font /Subtype /Type1 /BaseFont /Helvetica >> endobj');
+
   let pdf = '%PDF-1.4\n';
   const offsets = [0];
   for (const o of objs) { offsets.push(Buffer.byteLength(pdf)); pdf += o + '\n'; }
@@ -233,6 +309,7 @@ r.post('/invoice/download/:jobId', roleGuard(['user', 'admin']), asyncHandler(as
   pdf += `xref\n0 ${objs.length + 1}\n0000000000 65535 f \n`;
   for (let i = 1; i <= objs.length; i++) pdf += `${String(offsets[i]).padStart(10, '0')} 00000 n \n`;
   pdf += `trailer << /Size ${objs.length + 1} /Root 1 0 R >>\nstartxref\n${xrefStart}\n%%EOF`;
+
   const buf = Buffer.from(pdf, 'binary');
   res.setHeader('Content-Type', 'application/pdf');
   res.setHeader('Content-Disposition', `attachment; filename=invoice_${req.params.jobId}.pdf`);

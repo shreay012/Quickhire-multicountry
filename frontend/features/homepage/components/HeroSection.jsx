@@ -231,18 +231,6 @@ import ServiceCardSkeleton from "./ServiceCardSkeleton";
 import { Skeleton } from "@mui/material";
 import { useTranslations } from "next-intl";
 
-const talentCards = [
-  { label: "Ai Engineer", image: "/images/homepage/ai-engineer.png" },
-  { label: "Developer", image: "/images/homepage/developer.png" },
-  { label: "Quality Assurance", image: "/images/homepage/quality.png" },
-  { label: "Designer", image: "/images/homepage/designer.png" },
-  { label: "Security Engineer", image: "/images/homepage/secqurity.png" },
-  { label: "DevOps Engineer", image: "/images/homepage/deveops.png" },
-  { label: "Content Writer", image: "/images/homepage/content.png" },
-  { label: "IT Support Engineer", image: "/images/homepage/it-support.png" },
-  { label: "CRM Developer", image: "/images/homepage/crm.png" },
-];
-
 const HeroSection = () => {
   const t = useTranslations("hero");
   const [currentText, setCurrentText] = useState(0);

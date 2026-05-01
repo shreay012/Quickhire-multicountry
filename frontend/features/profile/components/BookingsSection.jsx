@@ -109,16 +109,6 @@ const BookingsSection = () => {
     }) || [];
   });
 
-  // Log booking IDs to debug truncation issue
-  if (ongoingBookings.length > 0) {
-    console.log('📋 Booking IDs from API:', ongoingBookings.map(b => ({
-      id: b.id,
-      serviceBookingId: b.serviceBookingId,
-      serviceId: b.serviceId,
-      statusType: b.statusType
-    })));
-  }
-
   // Transform completed bookings API data
   const completedBookings = (completedBookingsData || []).flatMap((booking) => {
     return booking.services?.map((service) => ({
@@ -237,15 +227,6 @@ const BookingsSection = () => {
                     
                       <div
                         onClick={() => {
-                          console.log('🖱️ Booking card clicked:', {
-                            bookingId: booking.id,
-                            serviceBookingId: booking.serviceBookingId,
-                            serviceId: booking.serviceId,
-                            serviceName: booking.service,
-                            statusType: booking.statusType
-                          });
-                          
-                          
                           const otherServices = ongoingBookings
                             .filter(b => b.id !== booking.id)
                             .map(b => ({
@@ -274,12 +255,8 @@ const BookingsSection = () => {
                             otherBookings: otherServices, // Other ongoing services
                           };
                           
-                          console.log('💾 Storing in sessionStorage:', bookingData);
                           sessionStorage.setItem('currentBooking', JSON.stringify(bookingData));
-                          
-                         
                           const encodedId = encodeURIComponent(booking.id);
-                          console.log('🔗 Navigating to:', `/booking-workspace/${encodedId}`);
                           router.push(`/booking-workspace/${encodedId}`);
                         }}
                         className={`rounded-lg p-4 flex items-center gap-3 cursor-pointer hover:opacity-80 transition-opacity ${
