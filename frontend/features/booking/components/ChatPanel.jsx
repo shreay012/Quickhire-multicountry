@@ -29,7 +29,9 @@ const ChatPanel = ({
   authToken,
   // Socket.IO connects to the backend ORIGIN (path '/api/socket.io' is added separately).
   // Use NEXT_PUBLIC_BACKEND_URL (host without /api) so we don't end up with /api/api/socket.io.
-  baseUrl = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:4000",
+  // BACKEND_URL_FIX_V1: NEXT_PUBLIC_API_URL is the canonical Vercel env var (matches SocketProvider).
+  // Fallback to NEXT_PUBLIC_BACKEND_URL for back-compat with older deployments.
+  baseUrl = process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:4000",
   triggerSocketConnect = 0, // Trigger from parent component
 }) => {
   const [messages, setMessages] = useState([]);
