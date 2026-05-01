@@ -39,6 +39,9 @@ export default function AdminTicketDetailPage() {
   const [reply, setReply]                 = useState('');
   const [sending, setSending]             = useState(false);
   const [updatingStatus, setUpdatingStatus] = useState(false);
+  const [escalating, setEscalating]       = useState(false);
+  const [showEscalate, setShowEscalate]   = useState(false);
+  const [escalationNotes, setEscalationNotes] = useState('');
 
   const chatBottomRef = useRef(null);
   const replyRef      = useRef(null);
@@ -75,6 +78,26 @@ export default function AdminTicketDetailPage() {
       showError(e?.response?.data?.error?.message || 'Failed');
     } finally {
       setUpdatingStatus(false);
+    }
+  };
+
+  // ── Escalate ───────────────────────────────────────────────────────────────
+
+  const escalate = async () => {
+    setEscalating(true);
+    try {
+      await staffApi.post(`/admin-ops/tickets/${id}/escalate`, {
+        notes: escalationNotes.trim() || undefined,
+      });
+      setTicket(prev => ({ ...prev, status: 'escalated' }));
+      setShowEscalate(false);
+      setEscalationNotes('');
+      showSuccess('Ticket escalated');
+      load();
+    } catch (e) {
+      showError(e?.response?.data?.error?.message || 'Failed to escalate');
+    } finally {
+      setEscalating(false);
     }
   };
 
@@ -192,6 +215,46 @@ export default function AdminTicketDetailPage() {
                 </button>
               ))}
             </div>
+
+            {/* Escalate */}
+            {ticket.status !== 'escalated' && ticket.status !== 'closed' && ticket.status !== 'resolved' && (
+              <div className="mt-3 pt-3 border-t border-[#EEF5EC]">
+                {!showEscalate ? (
+                  <button
+                    onClick={() => setShowEscalate(true)}
+                    className="w-full px-3 py-2 rounded-lg text-sm font-open-sauce-semibold border border-orange-200 bg-orange-50 text-orange-700 hover:bg-orange-100 transition-colors cursor-pointer"
+                  >
+                    ⬆ Escalate Ticket
+                  </button>
+                ) : (
+                  <div className="space-y-2">
+                    <textarea
+                      value={escalationNotes}
+                      onChange={(e) => setEscalationNotes(e.target.value)}
+                      placeholder="Optional escalation notes…"
+                      rows={2}
+                      className="w-full border border-[#E5F1E2] rounded-lg px-3 py-2 text-sm font-open-sauce focus:ring-2 focus:ring-orange-300/40 focus:border-orange-400 focus:outline-none resize-none"
+                    />
+                    <div className="flex gap-2">
+                      <button
+                        onClick={escalate}
+                        disabled={escalating}
+                        className="flex-1 px-3 py-2 rounded-lg text-sm font-open-sauce-semibold bg-orange-600 text-white hover:bg-orange-700 transition-colors disabled:opacity-50 cursor-pointer"
+                      >
+                        {escalating ? 'Escalating…' : 'Confirm Escalate'}
+                      </button>
+                      <button
+                        onClick={() => { setShowEscalate(false); setEscalationNotes(''); }}
+                        disabled={escalating}
+                        className="px-3 py-2 rounded-lg text-sm font-open-sauce-semibold bg-[#F5F7F5] text-[#636363] hover:bg-[#EEF5EC] transition-colors cursor-pointer"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Original Message Card */}
