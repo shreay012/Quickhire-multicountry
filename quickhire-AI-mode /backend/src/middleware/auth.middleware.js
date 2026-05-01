@@ -20,6 +20,9 @@ const PUBLIC_PATHS = new Set([
     '/chatbot/suggested',
     '/chatbot/message',
     '/promo/validate',
+    '/jobs/pricing',
+    // Geo-pricing public endpoints (shown on service detail + checkout before auth)
+    '/geo-pricing/checkout-preview',
   ]);
 
 const PUBLIC_PREFIXES = [
@@ -29,6 +32,8 @@ const PUBLIC_PREFIXES = [
     '/search/articles',
     '/reviews/user',
     '/reviews/booking',
+    '/legal/doc',         // legal documents are publicly readable (shown pre-login)
+    '/geo-pricing/price', // per-service pricing (shown on service detail pages)
   ];
 
 export async function authMiddleware(req, _res, next) {
