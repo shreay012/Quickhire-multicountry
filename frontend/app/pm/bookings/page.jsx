@@ -5,6 +5,7 @@ import { useEffect, useState, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import staffApi from '@/lib/axios/staffApi';
+import { s } from '@/lib/utils/i18nText';
 import { PageHeader, Table, StatusBadge, Spinner, ErrorBox, Button } from '@/components/staff/ui';
 
 function formatDuration(ms) {
@@ -67,11 +68,11 @@ export default function PmBookingsPage() {
     { key: '_id', label: 'ID', render: (r) => <code className="text-xs text-[#909090] font-mono">{String(r._id).slice(-8)}</code> },
     { key: 'customerName', label: 'Customer', render: (r) => (
       <div>
-        <div className="text-sm text-[#26472B] font-open-sauce-semibold">{r.customerName || '—'}</div>
+        <div className="text-sm text-[#26472B] font-open-sauce-semibold">{s(r.customerName) || '—'}</div>
         {r.customerMobile && <div className="text-[11px] text-[#909090]">{r.customerMobile}</div>}
       </div>
     ) },
-    { key: 'serviceName', label: 'Service', render: (r) => <span className="text-sm text-[#26472B]">{r.serviceName || '—'}</span> },
+    { key: 'serviceName', label: 'Service', render: (r) => <span className="text-sm text-[#26472B]">{s(r.serviceName) || '—'}</span> },
     { key: 'status', label: 'Status', render: (r) => <StatusBadge status={r.status} /> },
     { key: 'time', label: 'Worked', render: (r) => (
       <code className="text-xs font-mono text-[#26472B]">{formatDuration(liveWorked(r, tick))}</code>

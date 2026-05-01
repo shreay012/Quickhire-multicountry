@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import staffApi from '@/lib/axios/staffApi';
 import { showError, showSuccess } from '@/lib/utils/toast';
+import { s } from '@/lib/utils/i18nText';
 import { PageHeader, StatusBadge, Spinner, ErrorBox, Button } from '@/components/staff/ui';
 
 function fmtDate(d) { if (!d) return '—'; try { return new Date(d).toLocaleString(); } catch { return String(d); } }
@@ -99,8 +100,8 @@ export default function ResourceAssignmentDetailPage() {
               <StatusBadge status={job.status} />
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-sm">
-              <Field label="Customer" value={job.customerName} sub={job.customerMobile} />
-              <Field label="Service" value={job.serviceName} />
+              <Field label="Customer" value={s(job.customerName)} sub={job.customerMobile} />
+              <Field label="Service" value={s(job.serviceName)} />
               <Field label="Date" value={svc.preferredStartDate ? new Date(svc.preferredStartDate).toLocaleDateString() : '—'} />
               <Field label="Start Time" value={svc.startTime || '—'} />
               <Field label="End Time" value={svc.endTime || '—'} />

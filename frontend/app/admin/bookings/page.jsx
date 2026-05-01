@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import staffApi from '@/lib/axios/staffApi';
 import { showError, showSuccess } from '@/lib/utils/toast';
+import { s } from '@/lib/utils/i18nText';
 import {
   PageHeader,
   Table,
@@ -178,7 +179,7 @@ export default function AdminBookingsPage() {
             #{String(r._id).slice(-8)}
           </div>
           <div className="font-open-sauce-semibold text-[#26472B] text-sm leading-tight mt-0.5">
-            {r.customerName || '—'}
+            {s(r.customerName) || '—'}
           </div>
         </div>
       ),
@@ -188,7 +189,7 @@ export default function AdminBookingsPage() {
       label: 'Service',
       render: (r) => (
         <div>
-          <div className="text-sm text-[#484848] font-open-sauce">{r.serviceName || '—'}</div>
+          <div className="text-sm text-[#484848] font-open-sauce">{s(r.serviceName) || '—'}</div>
           {r.customerMobile && (
             <div className="text-xs text-[#909090] mt-0.5">{r.customerMobile}</div>
           )}
@@ -200,7 +201,7 @@ export default function AdminBookingsPage() {
       label: 'PM',
       render: (r) => (
         <span className={`text-sm font-open-sauce ${r.pmName ? 'text-[#26472B] font-open-sauce-medium' : 'text-[#909090] italic'}`}>
-          {r.pmName || 'Unassigned'}
+          {s(r.pmName) || 'Unassigned'}
         </span>
       ),
     },

@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import staffApi from '@/lib/axios/staffApi';
 import { showError, showSuccess } from '@/lib/utils/toast';
+import { s } from '@/lib/utils/i18nText';
 import chatSocketService from '@/lib/services/chatSocketService';
 import {
   PageHeader,
@@ -365,10 +366,10 @@ export default function AdminBookingDetailPage() {
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-4">
               <Field
                 label="Customer"
-                value={job.customerName || '—'}
+                value={s(job.customerName) || '—'}
                 sub={job.customerMobile}
               />
-              <Field label="Service" value={job.serviceName || svc.name || '—'} />
+              <Field label="Service" value={s(job.serviceName) || s(svc.name) || '—'} />
               <Field label="Amount" value={fmtINR(job.amount)} />
               <Field label="Duration" value={svc.durationTime ? `${svc.durationTime} h` : '—'} />
               <Field label="Start Time" value={svc.startTime || fmtDate(job.startTime) || '—'} />
@@ -376,8 +377,8 @@ export default function AdminBookingDetailPage() {
               <Field label="Time Worked" value={fmtDuration(job.workedMs || 0)} mono />
               <Field label="Started At" value={fmtDate(job.startedAt)} />
               <Field label="Completed At" value={fmtDate(job.completedAt)} />
-              <Field label="Resource" value={job.resourceName || job.assignedResource?.name || '—'} />
-              <Field label="PM" value={job.pmName || job.projectManager?.name || '—'} />
+              <Field label="Resource" value={s(job.resourceName) || s(job.assignedResource?.name) || '—'} />
+              <Field label="PM" value={s(job.pmName) || s(job.projectManager?.name) || '—'} />
               <Field label="Booking ID" value={bookingId} mono wide />
             </div>
 
