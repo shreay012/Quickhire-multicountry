@@ -5,6 +5,12 @@ import Image from "next/image";
 import { Box, Typography, Grid, Container } from "@mui/material";
 import { useTranslations } from "next-intl";
 
+// FOOTER_URL_FIX_V1: env vars may be unset on Vercel previews / new deploys —
+// fall back to "#" so Link doesn't render `undefined/<path>` (which 404s
+// every RSC prefetch and clutters the console).
+const BLOG_BASE = process.env.NEXT_PUBLIC_BLOG_BASE_URL || "";
+const ENTERPRISE_BASE = process.env.NEXT_PUBLIC_ENTERPRISE_BASE_URL || "";
+
 const Footer = () => {
   const t = useTranslations("footer");
   return (
@@ -100,7 +106,7 @@ const Footer = () => {
               }}
             >
               <Link
-                href={`${process.env.NEXT_PUBLIC_BLOG_BASE_URL}/industry-perspectives/`}
+                href={BLOG_BASE ? `${BLOG_BASE}/industry-perspectives/` : "#"}
                 style={{ textDecoration: "none" }}
               >
                 <Typography
@@ -119,7 +125,7 @@ const Footer = () => {
               </Link>
 
               <Link
-                href={`${process.env.NEXT_PUBLIC_ENTERPRISE_BASE_URL}/home`}
+                href={ENTERPRISE_BASE ? `${ENTERPRISE_BASE}/home` : "#"}
                 style={{ textDecoration: "none" }}
               >
                 <Typography

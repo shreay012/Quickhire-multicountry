@@ -38,6 +38,20 @@ const LEGAL_CONTENT_STYLES = `
 
 /* ─── Modal ─────────────────────────────────────────────────── */
 
+// LEGAL_DOC_TITLE_FIX_V1: backend can return `title` either as a flat string or
+// a multi-locale object `{ en: "...", de: "..." }`. Rendering an object as a
+// React child throws #31, so coerce here.
+function pickDocText(value, preferred = 'en') {
+  if (value == null) return '';
+  if (typeof value === 'string') return value;
+  if (typeof value === 'object') {
+    return (
+      value[preferred] || value.en || value[Object.keys(value)[0]] || ''
+    );
+  }
+  return String(value);
+}
+
 function DocModal({ doc, onAccept, isAccepting }) {
   const [scrolled, setScrolled] = useState(false);
   const contentRef = useRef(null);
@@ -47,6 +61,10 @@ function DocModal({ doc, onAccept, isAccepting }) {
     'privacy-policy': 'Privacy Policy',
     'refund-policy': 'Refund Policy',
   };
+
+  const title = pickDocText(doc.title) || DOC_LABELS[doc.docType] || 'Legal Document';
+  const content = pickDocText(doc.content) || '<p>Loading…</p>';
+  const changeNotes = pickDocText(doc.changeNotes);
 
   // Auto-unlock if content is short enough that no scrolling is needed
   useEffect(() => {
@@ -76,9 +94,7 @@ function DocModal({ doc, onAccept, isAccepting }) {
         {/* Header */}
         <div className="flex-shrink-0 flex items-center justify-between px-6 py-5 border-b border-gray-100">
           <div>
-            <h2 className="text-xl font-bold text-gray-900">
-              {doc.title || DOC_LABELS[doc.docType] || 'Legal Document'}
-            </h2>
+            <h2 className="text-xl font-bold text-gray-900">{title}</h2>
             <p className="text-sm text-gray-500 mt-0.5">
               Version {doc.version} · Effective {new Date(doc.effectiveDate).toLocaleDateString()}
             </p>
@@ -94,7 +110,7 @@ function DocModal({ doc, onAccept, isAccepting }) {
           className="legal-html flex-1 overflow-y-auto px-6 py-5 text-sm"
           style={{ minHeight: 0 }}   /* needed for flex-1 + overflow-y-auto to work */
           onScroll={handleScroll}
-          dangerouslySetInnerHTML={{ __html: doc.content || '<p>Loading…</p>' }}
+          dangerouslySetInnerHTML={{ __html: content }}
         />
 
         {/* Footer */}
@@ -105,9 +121,9 @@ function DocModal({ doc, onAccept, isAccepting }) {
               <span>Scroll to the bottom to accept</span>
             </p>
           )}
-          {doc.changeNotes && (
+          {changeNotes && (
             <p className="text-sm text-amber-700 bg-amber-50 rounded-lg px-3 py-2">
-              <strong>What changed:</strong> {doc.changeNotes}
+              <strong>What changed:</strong> {changeNotes}
             </p>
           )}
           <button
