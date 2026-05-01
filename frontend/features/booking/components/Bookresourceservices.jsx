@@ -58,7 +58,10 @@ const Bookresourceservices = () => {
       filtered.map((svc, idx) => ({
         ...svc,
         backgroundColor: BG_PALETTE[idx % BG_PALETTE.length],
-        iconName: getServiceIcon(svc),
+        // Prefer admin-uploaded image (service.imageUrl) over the hardcoded
+        // category-icon mapping. Falls back to category icon when admin has
+        // not set a custom image.
+        iconName: svc.imageUrl || svc.image || getServiceIcon(svc),
       })),
     [filtered],
   );

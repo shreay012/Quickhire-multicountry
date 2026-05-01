@@ -331,6 +331,9 @@ const serviceSchema = z.object({
   name:         I18nStringSchema,
   category:     z.string().max(100).optional().default(''),
   description:  I18nStringSchema.optional().default(''),
+  // SERVICE_TAGLINE_V1: short one-liner shown on customer service cards
+  // (homepage Bookresourceservices grid) and as a sub-heading. Multi-locale.
+  tagline:      I18nStringSchema.optional().default(''),
   technologies: z.array(TechItemSchema).optional().default([]),
   notIncluded:  z.array(z.string().max(500)).optional().default([]),
   hourlyRate:   z.union([z.number(), z.string()]).transform((v) => Number(v) || 0),
@@ -376,6 +379,7 @@ r.post('/services', permGuard(PERMS.SERVICE_WRITE), validate(serviceSchema), asy
     title:        nameEn,             // always a plain English string (legacy compat)
     category:     body.category || '',
     description:  body.description || '',
+    tagline:      body.tagline || '',
     technologies: body.technologies || [],
     notIncluded:  body.notIncluded || [],
     hourlyRate:   Number(body.hourlyRate) || 0,
@@ -403,6 +407,7 @@ r.put('/services/:id', permGuard(PERMS.SERVICE_WRITE), validate(serviceSchema.pa
   }
   if (body.category     !== undefined) $set.category     = body.category;
   if (body.description  !== undefined) $set.description  = body.description;
+  if (body.tagline      !== undefined) $set.tagline      = body.tagline;
   if (body.technologies !== undefined) $set.technologies = body.technologies;
   if (body.notIncluded  !== undefined) $set.notIncluded  = body.notIncluded;
   if (body.hourlyRate   !== undefined) {

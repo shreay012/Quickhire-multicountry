@@ -121,6 +121,7 @@ export default function AdminServiceDetailPage() {
   }
 
   const name = s(svc.name) || svc.title || '—';
+  const tagline = s(svc.tagline) || '';
   const description = s(svc.description) || '';
   const status = svc.deletedAt ? 'archived' : (svc.active ? 'active' : 'inactive');
 
@@ -142,6 +143,7 @@ export default function AdminServiceDetailPage() {
         <div className="lg:col-span-2 space-y-4">
           <Card title="Overview" action={<StatusBadge status={status} />}>
             <Row label="Name">{name}</Row>
+            {tagline && <Row label="Tagline">{tagline}</Row>}
             <Row label="Slug"><code className="text-xs text-[#636363]">{svc.slug || '—'}</code></Row>
             <Row label="Category">{svc.category || '—'}</Row>
             <Row label="Hourly rate">{fmtINR(svc.hourlyRate || svc.pricing?.hourly)}</Row>

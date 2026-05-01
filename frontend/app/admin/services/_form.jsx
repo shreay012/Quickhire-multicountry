@@ -73,6 +73,9 @@ const emptyTech    = () => emptyLangMap();
 const emptyForm = () => ({
   name:         emptyLangMap(),
   description:  emptyLangMap(),
+  // Tagline: short one-liner shown on the customer-facing service card grid.
+  // Multi-locale, optional. Falls back to first sentence of description.
+  tagline:      emptyLangMap(),
   category:     '',
   technologies: [],
   notIncluded:  [],
@@ -553,6 +556,12 @@ export default function ServiceFormPage({ serviceId = null, initialData = null }
       ? { ...emptyLangMap(), ...rawDesc }
       : { ...emptyLangMap(), en: typeof rawDesc === 'string' ? rawDesc : '' };
 
+    // Hydrate tagline map (same shape as name/description)
+    const rawTagline = initialData.tagline;
+    const taglineMap = (rawTagline && typeof rawTagline === 'object' && !Array.isArray(rawTagline))
+      ? { ...emptyLangMap(), ...rawTagline }
+      : { ...emptyLangMap(), en: typeof rawTagline === 'string' ? rawTagline : '' };
+
     // Hydrate technologies — each tech may be a string or an i18n-keyed object
     // (stored as { name, en, hi, ... }).  We keep all language fields.
     const techs = (initialData.technologies || []).map((t) => {
@@ -579,6 +588,7 @@ export default function ServiceFormPage({ serviceId = null, initialData = null }
     setForm({
       name:         nameMap,
       description:  descMap,
+      tagline:      taglineMap,
       category:     initialData.category || '',
       technologies: techs,
       notIncluded:  notInc,
@@ -606,6 +616,11 @@ export default function ServiceFormPage({ serviceId = null, initialData = null }
         LANG_CODES.map((c) => [c, form.description[c]?.trim() || '']).filter(([, v]) => v)
       );
 
+      // Build i18n tagline object the same way
+      const taglineI18n = Object.fromEntries(
+        LANG_CODES.map((c) => [c, form.tagline[c]?.trim() || '']).filter(([, v]) => v)
+      );
+
       // Technologies — store as rich objects: { name (English), en, hi, ... }
       // The customer-facing flattenI18nDeep interceptor will localise to a
       // string for the active locale at read time.
@@ -621,6 +636,7 @@ export default function ServiceFormPage({ serviceId = null, initialData = null }
         name:         nameI18n,
         category:     form.category || '',
         description:  descI18n,
+        tagline:      Object.keys(taglineI18n).length ? taglineI18n : '',
         technologies: techObjects,
         notIncluded:  form.notIncluded.filter(Boolean),
         faqs:         form.faqs,
@@ -797,7 +813,7 @@ export default function ServiceFormPage({ serviceId = null, initialData = null }
         {tab === 1 && (
           <>
             <p className="text-sm text-[#636363]">
-              Enter the service <strong>name</strong> and <strong>description</strong> in each language.
+              Enter the service <strong>name</strong>, <strong>tagline</strong> and <strong>description</strong> in each language.
               English is required — all others are optional and fall back to English if empty.
             </p>
             {LANGUAGES.map(({ code, label }) => (
@@ -818,6 +834,16 @@ export default function ServiceFormPage({ serviceId = null, initialData = null }
                     onChange={(v) => setLang('name', code, v)}
                     placeholder={code === 'en' ? 'e.g. AI Engineer' : `Service name in ${label}…`}
                     className={code === 'en' && !form.name.en ? 'border-red-200' : ''}
+                  />
+                </div>
+                <div>
+                  <Label>Tagline in {label}</Label>
+                  <Input
+                    value={form.tagline[code] || ''}
+                    onChange={(v) => setLang('tagline', code, v)}
+                    placeholder={code === 'en'
+                      ? 'e.g. Need smarter AI? We build & optimise.'
+                      : `Short one-liner shown on service cards (in ${label})`}
                   />
                 </div>
                 <div>

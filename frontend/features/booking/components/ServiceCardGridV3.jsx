@@ -76,9 +76,18 @@ const ServiceCardGridV3 = ({ service, backgroundColor, iconUrl }) => {
           </h3>
         </div>
 
-        {/* Tagline */}
-        <p className="text-white/90 text-xs md:text-sm mb-4 md:mb-6 ml-10 md:ml-14 font-['Open_Sauce_One_Regular']">
-          {tCms(service.content) || 'Need Smarter AI Solutions? We Build & Optimize.'}
+        {/* Tagline — uses admin tagline (service.tagline / content) first,
+            then trims the description to a one-liner so each card shows its
+            own copy instead of a global hardcoded string. */}
+        <p className="text-white/90 text-xs md:text-sm mb-4 md:mb-6 ml-10 md:ml-14 font-['Open_Sauce_One_Regular'] line-clamp-2">
+          {tCms(service.tagline) ||
+            tCms(service.content) ||
+            (() => {
+              const desc = tCms(service.descriptionI18n || service.description) || '';
+              const firstSentence = String(desc).split(/[.!?]/)[0];
+              return firstSentence ? firstSentence.trim() + '.' : '';
+            })() ||
+            ''}
         </p>
 
         {/* Divider */}

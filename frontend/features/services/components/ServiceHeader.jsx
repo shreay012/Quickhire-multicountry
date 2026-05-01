@@ -75,8 +75,8 @@ const ServiceHeader = ({ serviceData, isLoading }) => {
         //   paddingBottom: 'clamp(24px, 4vw, 48px)'
         // }}
       >
-        {/* Top Badge */}
-        <div className="flex justify-center mb-6">
+        {/* Top Badge — service name + (admin) category */}
+        <div className="flex flex-wrap justify-center gap-2 mb-6">
           <Box
             sx={{
               backgroundColor: "#FFFFFF",
@@ -91,9 +91,29 @@ const ServiceHeader = ({ serviceData, isLoading }) => {
                 color: "var(--dark-text-primary)",
               }}
             >
-              {tCms(serviceData?.nameI18n || serviceData?.name) || "AI Engineer"}
+              {tCms(serviceData?.nameI18n || serviceData?.name) || "Service"}
             </Typography>
           </Box>
+          {serviceData?.category && (
+            <Box
+              sx={{
+                backgroundColor: "#F2F9F1",
+                color: "#26472B",
+                padding: "8px 16px",
+                borderRadius: "24px",
+                border: "1px solid #D6EBCF",
+              }}
+            >
+              <Typography
+                sx={{
+                  fontSize: "var(--font-size-14)",
+                  fontWeight: "var(--font-weight-500)",
+                }}
+              >
+                {serviceData.category}
+              </Typography>
+            </Box>
+          )}
         </div>
 
         {/* Main Heading */}
@@ -140,14 +160,29 @@ const ServiceHeader = ({ serviceData, isLoading }) => {
                 height: { xs: "350px", md: "400px" },
               }}
             >
-              {/* Professional Image */}
-              <Image
-                src="/images/book-services/service_man.png"
-                alt="AI Engineer Professional"
-                width={258}
-                height={253}
-                className="relative z-10 w-full h-full object-cover rounded-[16px]"
-              />
+              {/* Service hero image — driven by admin (services.imageUrl).
+                  Falls back to the default illustration when admin hasn't
+                  uploaded a service-specific image yet. */}
+              {serviceData?.imageUrl || serviceData?.image ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={serviceData.imageUrl || serviceData.image}
+                  alt={
+                    typeof serviceData?.name === 'string'
+                      ? serviceData.name
+                      : (serviceData?.name?.en || 'Service')
+                  }
+                  className="relative z-10 w-full h-full object-cover rounded-[16px]"
+                />
+              ) : (
+                <Image
+                  src="/images/book-services/service_man.png"
+                  alt="QuickHire Professional"
+                  width={258}
+                  height={253}
+                  className="relative z-10 w-full h-full object-cover rounded-[16px]"
+                />
+              )}
             </Box>
           </div>
 
