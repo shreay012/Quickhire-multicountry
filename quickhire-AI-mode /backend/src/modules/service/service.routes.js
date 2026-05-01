@@ -75,10 +75,11 @@ function projectForCountry(service, country, locale = 'en') {
   if (!service) return service;
   const out = { ...service };
 
-  // Localise i18n name/description to a flat string for the requested locale.
-  // The original i18n object is preserved under the *I18n key so clients that
-  // need all translations (e.g. admin edit) can still access them.
-  for (const f of ['name', 'description']) {
+  // Localise i18n name / description / tagline to a flat string for the
+  // requested locale. The original i18n object is preserved under the *I18n
+  // key so clients that need all translations (e.g. admin edit) can still
+  // access them.
+  for (const f of ['name', 'description', 'tagline']) {
     const v = out[f];
     if (v && typeof v === 'object' && !Array.isArray(v)) {
       out[`${f}I18n`] = v;
