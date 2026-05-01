@@ -4,7 +4,8 @@ import { AppError } from '../../utils/AppError.js';
 import { emitTo } from '../../socket/index.js';
 import { enqueueNotification } from '../notification/notification.service.js';
 
-const col = () => getDb().collection('messages');
+// COLLECTION_UNIFIED_FIX_V1: align with admin/pm/resource which all use 'chat'.
+const col = () => getDb().collection('chat');
 const usersCol = () => getDb().collection('users');
 
 async function attachSender(messages) {
