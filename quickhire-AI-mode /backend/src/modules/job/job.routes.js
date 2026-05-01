@@ -9,10 +9,56 @@ import { AppError } from '../../utils/AppError.js';
 import { toObjectId } from '../../utils/oid.js';
 import { idempotencyGetOrSet, acquireLock, releaseLock } from '../../utils/idempotency.js';
 import { checkSlotBookable } from '../availability/availability.service.js';
+import { COUNTRIES, LOCALE_TO_COUNTRY } from '../service/service.model.js';
 
 const r = Router();
 const jobsCol = () => getDb().collection('jobs');
 const servicesCol = () => getDb().collection('services');
+
+// Resolve user's country from request (cookie/header/locale → IN fallback).
+function resolveCountry(req) {
+  const fromHeader = String(req.headers['cf-ipcountry'] || req.headers['x-country'] || '').toUpperCase();
+  if (COUNTRIES.includes(fromHeader)) return fromHeader;
+  const fromCookie = String(req.cookies?.qh_country || '').toUpperCase();
+  if (COUNTRIES.includes(fromCookie)) return fromCookie;
+  const locale = String(req.cookies?.qh_locale || '').split('-')[0];
+  if (LOCALE_TO_COUNTRY[locale]) return LOCALE_TO_COUNTRY[locale];
+  return 'IN';
+}
+
+// Hourly + currency resolver that handles ALL service shapes:
+//   - new multi-country: pricing[] (find country block → basePrice/currency)
+//   - legacy flat object: pricing.hourly + pricing.currency
+//   - oldest:            hourlyRate + currency
+function resolveServicePrice(svc, country) {
+  if (Array.isArray(svc?.pricing)) {
+    const block =
+      svc.pricing.find((p) => p.country === country && p.active !== false) ||
+      svc.pricing.find((p) => p.country === 'IN') ||
+      svc.pricing[0];
+    if (block) {
+      return {
+        hourly: Number(block.basePrice) || 0,
+        currency: block.currency || 'INR',
+        country: block.country,
+      };
+    }
+  }
+  return {
+    hourly: Number(svc?.pricing?.hourly ?? svc?.hourlyRate) || 0,
+    currency: svc?.pricing?.currency || svc?.currency || 'INR',
+    country: null,
+  };
+}
+
+// Coerce an i18n-object name/title to a flat string for storage on jobs/bookings.
+function flatTitle(svc) {
+  const v = svc?.name ?? svc?.title;
+  if (v && typeof v === 'object' && !Array.isArray(v)) {
+    return v.en || Object.values(v)[0] || 'Booking';
+  }
+  return v || 'Booking';
+}
 
 // Accepts BOTH legacy flat shape and v3 FE shape:
 //   legacy: { serviceId, duration, startTime? }
@@ -50,7 +96,7 @@ const createJobSchema = z.object({
   }).optional(),
 });
 
-r.post('/pricing', roleGuard(['user', 'pm', 'admin']), validate(pricingSchema), asyncHandler(async (req, res) => {
+r.post('/pricing', validate(pricingSchema), asyncHandler(async (req, res) => {
   // Normalize: pull serviceId, duration, days from either shape
   let serviceIdStr;
   let duration;
@@ -68,11 +114,11 @@ r.post('/pricing', roleGuard(['user', 'pm', 'admin']), validate(pricingSchema), 
   }
   const svc = await servicesCol().findOne({ _id: toObjectId(serviceIdStr) });
   if (!svc) throw new AppError('RESOURCE_NOT_FOUND', 'Service not found', 404);
-  const hourly = svc.pricing?.hourly ?? svc.hourlyRate ?? 0;
+  const country = resolveCountry(req);
+  const { hourly, currency } = resolveServicePrice(svc, country);
   const subtotal = +(hourly * duration * selectedDays).toFixed(2);
   const tax = +(subtotal * 0.18).toFixed(2);
   const total = +(subtotal + tax).toFixed(2);
-  const currency = svc.pricing?.currency || svc.currency || 'INR';
   res.json({
     success: true,
     data: {
