@@ -316,13 +316,19 @@ r.post('/assignments/:id/messages', validate(sendMsgSchema), asyncHandler(async 
   const ins = await chatCol().insertOne(doc);
   const message = { ...doc, _id: ins.insertedId };
   try { emitTo(roomId, 'new-message', message); } catch {}
-  // Notify customer + PM
+  // CHAT_FANOUT_FIX_V1: push to each participant's personal room as well so
+  // the message reaches clients even if they haven't joined booking_<id>.
   const recipients = [job.userId, job.pmId].filter(Boolean).map(String);
-  recipients.forEach((uid) => enqueueNotification({
-    userId: uid, type: 'chat_message',
-    title: 'New chat message', body: req.body.msg.slice(0, 120),
-    data: { bookingId: String(jobId) },
-  }).catch(() => {}));
+  recipients.forEach((uid) => {
+    try { emitTo(`user_${uid}`, 'message:new', message); } catch {}
+    enqueueNotification({
+      userId: uid, type: 'chat_message',
+      title: 'New chat message', body: req.body.msg.slice(0, 120),
+      data: { bookingId: String(jobId) },
+    }).catch(() => {});
+  });
+  // Admin observers
+  try { emitTo('role_admin', 'message:new', message); } catch {}
   res.status(201).json({ success: true, data: message });
 }));
 

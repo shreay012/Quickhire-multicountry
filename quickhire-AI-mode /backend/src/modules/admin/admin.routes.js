@@ -6,6 +6,8 @@ import { validate } from '../../middleware/validate.middleware.js';
 import { auditAdmin } from '../../middleware/audit.middleware.js';
 import { getDb } from '../../config/db.js';
 import { redis } from '../../config/redis.js';
+import { clearCachePattern, deleteCacheValue } from '../../utils/cache.js';
+import { CACHE_KEYS } from '../../utils/cache.keys.js';
 import { ObjectId } from 'mongodb';
 import { paginate, buildMeta } from '../../utils/pagination.js';
 import * as bookingService from '../booking/booking.service.js';
@@ -21,9 +23,18 @@ r.use(auditAdmin);
 
 async function invalidateServicesCache(id) {
   try {
-    await redis.del('cache:services:all');
-    if (id) await redis.del(`cache:services:${id}`);
-  } catch {}
+    // service.routes.js caches the list under "services:list:<country>:<locale>"
+    // (CACHE_KEYS.SERVICES_LIST = 'services:list').
+    // The old keys "cache:services:all" / "cache:services:<id>" no longer exist
+    // in service.routes.js, so we must target the actual key patterns.
+    await clearCachePattern(`${CACHE_KEYS.SERVICES_LIST}:*`);
+
+    if (id) {
+      // Detail pages: "services:detail:<id>:<country>:<locale>"
+      await clearCachePattern(`${CACHE_KEYS.SERVICES_DETAIL(id)}:*`);
+      await deleteCacheValue(CACHE_KEYS.SERVICES_DETAIL(id));
+    }
+  } catch { /* Redis errors must never crash the admin action */ }
 }
 
 const bookingsCol = () => getDb().collection('bookings');
@@ -279,15 +290,66 @@ const slugify = (s = '') =>
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/(^-|-$)/g, '');
 
+// i18n string schema — accepts either a plain string or a multi-locale object.
+// The customer-facing service.routes.js projectForCountry() will localise it
+// at read time using the caller's locale.
+const I18nStringSchema = z.union([
+  z.string().min(1).max(2000),
+  z.object({
+    en:      z.string().optional(),
+    hi:      z.string().optional(),
+    ar:      z.string().optional(),
+    de:      z.string().optional(),
+    es:      z.string().optional(),
+    fr:      z.string().optional(),
+    ja:      z.string().optional(),
+    'zh-CN': z.string().optional(),
+  }),
+]);
+
+// Technology schema — supports both legacy plain strings and rich i18n objects
+// (stored as { name, en, hi, ... }).  The customer-facing axios interceptor
+// (flattenI18nDeep) converts the rich form to a locale string automatically.
+const TechItemSchema = z.union([
+  z.string().max(100),
+  z.object({
+    name:    z.string().optional(),
+    en:      z.string().optional(),
+    hi:      z.string().optional(),
+    ar:      z.string().optional(),
+    de:      z.string().optional(),
+    es:      z.string().optional(),
+    fr:      z.string().optional(),
+    ja:      z.string().optional(),
+    'zh-CN': z.string().optional(),
+  }),
+]);
+
+// Only explicitly listed fields reach MongoDB — prevents injection of
+// computed fields like role, meta.status, etc.
 const serviceSchema = z.object({
-  name: z.string().min(2),
-  description: z.string().optional().default(''),
-  technologies: z.array(z.string()).optional().default([]),
-  hourlyRate: z.union([z.number(), z.string()]).transform((v) => Number(v) || 0),
-  imageUrl: z.string().optional().default(''),
-  faqs: z.array(z.any()).optional().default([]),
-  availability: z.any().optional(),
-}).passthrough();
+  name:         I18nStringSchema,
+  category:     z.string().max(100).optional().default(''),
+  description:  I18nStringSchema.optional().default(''),
+  technologies: z.array(TechItemSchema).optional().default([]),
+  notIncluded:  z.array(z.string().max(500)).optional().default([]),
+  hourlyRate:   z.union([z.number(), z.string()]).transform((v) => Number(v) || 0),
+  imageUrl:     z.string().url().optional().or(z.literal('')).default(''),
+  faqs:         z.array(z.object({
+    question: z.string().max(500),
+    answer:   z.string().max(2000),
+  })).optional().default([]),
+  active:       z.boolean().optional(),
+  availability: z.record(z.unknown()).optional(),
+});
+
+// Helper: resolve the English string from a name/description value that
+// may be either a plain string or a multi-locale object.
+const toEnglish = (v) => {
+  if (!v) return '';
+  if (typeof v === 'string') return v;
+  return v.en || Object.values(v).find(Boolean) || '';
+};
 
 r.get('/services', asyncHandler(async (_req, res) => {
   const items = await servicesCol().find({}).sort({ createdAt: -1 }).toArray();
@@ -306,22 +368,25 @@ r.get('/services/:id', asyncHandler(async (req, res) => {
 
 r.post('/services', permGuard(PERMS.SERVICE_WRITE), validate(serviceSchema), asyncHandler(async (req, res) => {
   const body = req.body;
-  const slug = slugify(body.name) + '-' + Math.random().toString(36).slice(2, 7);
+  const nameEn = toEnglish(body.name);
+  const slug = slugify(nameEn) + '-' + Math.random().toString(36).slice(2, 7);
   const doc = {
     slug,
-    name: body.name,
-    title: body.name,
-    description: body.description || '',
+    name:         body.name,          // i18n object or plain string
+    title:        nameEn,             // always a plain English string (legacy compat)
+    category:     body.category || '',
+    description:  body.description || '',
     technologies: body.technologies || [],
-    hourlyRate: Number(body.hourlyRate) || 0,
-    pricing: { hourly: Number(body.hourlyRate) || 0, currency: 'INR' },
-    imageUrl: body.imageUrl || '',
-    image: body.imageUrl || '',
-    faqs: body.faqs || [],
+    notIncluded:  body.notIncluded || [],
+    hourlyRate:   Number(body.hourlyRate) || 0,
+    pricing:      { hourly: Number(body.hourlyRate) || 0, currency: 'INR' },
+    imageUrl:     body.imageUrl || '',
+    image:        body.imageUrl || '',
+    faqs:         body.faqs || [],
     availability: body.availability || {},
-    active: true,
-    createdAt: new Date(),
-    updatedAt: new Date(),
+    active:       body.active !== undefined ? body.active : true,
+    createdAt:    new Date(),
+    updatedAt:    new Date(),
   };
   const ins = await servicesCol().insertOne(doc);
   await invalidateServicesCache();
@@ -332,15 +397,21 @@ r.put('/services/:id', permGuard(PERMS.SERVICE_WRITE), validate(serviceSchema.pa
   const id = toObjectId(req.params.id);
   const body = req.body;
   const $set = { updatedAt: new Date() };
-  if (body.name !== undefined) { $set.name = body.name; $set.title = body.name; }
-  if (body.description !== undefined) $set.description = body.description;
+  if (body.name !== undefined) {
+    $set.name  = body.name;
+    $set.title = toEnglish(body.name);
+  }
+  if (body.category     !== undefined) $set.category     = body.category;
+  if (body.description  !== undefined) $set.description  = body.description;
   if (body.technologies !== undefined) $set.technologies = body.technologies;
-  if (body.hourlyRate !== undefined) {
+  if (body.notIncluded  !== undefined) $set.notIncluded  = body.notIncluded;
+  if (body.hourlyRate   !== undefined) {
     $set.hourlyRate = Number(body.hourlyRate) || 0;
-    $set.pricing = { hourly: Number(body.hourlyRate) || 0, currency: 'INR' };
+    $set.pricing    = { hourly: Number(body.hourlyRate) || 0, currency: 'INR' };
   }
   if (body.imageUrl !== undefined) { $set.imageUrl = body.imageUrl; $set.image = body.imageUrl; }
-  if (body.faqs !== undefined) $set.faqs = body.faqs;
+  if (body.faqs     !== undefined) $set.faqs     = body.faqs;
+  if (body.active   !== undefined) $set.active   = body.active;
   if (body.availability !== undefined) $set.availability = body.availability;
   await servicesCol().updateOne({ _id: id }, { $set });
   await invalidateServicesCache(req.params.id);
@@ -362,13 +433,15 @@ r.delete('/services/:id', permGuard(PERMS.SERVICE_WRITE), asyncHandler(async (re
 /* ─────────────────────────────────────────────────────────────
  * Admin: PMs / Resources CRUD (creates users with role)
  * ───────────────────────────────────────────────────────────── */
+// Strict schema — no passthrough(). Prevents injecting computed fields like `role`
+// or `meta.status` directly into the users collection via admin staff create/update.
 const staffSchema = z.object({
-  name: z.string().min(2),
+  name: z.string().min(2).max(200),
   mobile: z.string().regex(/^\d{10}$/, 'mobile must be 10 digits'),
-  email: z.string().email().optional().or(z.literal('')),
-  specialization: z.array(z.string()).optional().default([]),
-  skills: z.array(z.string()).optional().default([]),
-}).passthrough();
+  email: z.string().email().optional().or(z.literal('')).default(''),
+  specialization: z.array(z.string().max(100)).optional().default([]),
+  skills: z.array(z.string().max(100)).optional().default([]),
+}).strict();
 
 const makeStaffRoutes = (role, basePath) => {
   r.get(basePath, asyncHandler(async (req, res) => {
@@ -584,13 +657,17 @@ r.post('/bookings/:id/messages',
     const ins = await chatCol().insertOne(doc);
     const message = { ...doc, _id: ins.insertedId };
     try { emitTo(roomId, 'new-message', message); } catch {}
-    [job.userId, job.pmId, job.resourceId].filter(Boolean).map(String).forEach((uid) =>
+    // CHAT_FANOUT_FIX_V1: push to participant personal rooms so clients receive
+    // the message even if they haven't joined booking_<id> (covers cases where
+    // the global SocketProvider reconnect clobbered the ChatPanel room join).
+    [job.userId, job.pmId, job.resourceId].filter(Boolean).map(String).forEach((uid) => {
+      try { emitTo(`user_${uid}`, 'message:new', message); } catch {}
       enqueueNotification({
         userId: uid, type: 'chat_message',
         title: 'Admin message', body: req.body.msg.slice(0, 120),
         data: { bookingId: String(id) },
-      }).catch(() => {}),
-    );
+      }).catch(() => {});
+    });
     res.status(201).json({ success: true, data: message });
   }),
 );

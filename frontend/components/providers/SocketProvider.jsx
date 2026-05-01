@@ -5,6 +5,12 @@ import chatSocketService from '@/lib/services/chatSocketService';
 import { getCurrentUser } from '@/lib/utils/userHelpers';
 import { useToast } from './ToastProvider';
 
+// Resolve socket base URL from environment — NEVER hardcode localhost
+const SOCKET_BASE_URL =
+  process.env.NEXT_PUBLIC_API_URL ||
+  (typeof window !== 'undefined' && window.location.origin) ||
+  'http://localhost:4000';
+
 const SocketContext = createContext({
   isConnected: false,
   notifications: [],
@@ -16,32 +22,32 @@ export function SocketProvider({ children }) {
   const [userState, setUserState] = useState(null);
   const { showToast } = useToast();
 
-  // Monitor localStorage for user changes
+  // Monitor localStorage for user changes (login / logout)
+  // SOCKET_RECONNECT_FIX_V1: only update userState when the underlying identity
+  // actually changes (user._id or token string). Previously every checkUser
+  // call produced a new object reference, which made the connect-effect below
+  // re-run on every storage event and clobbered ChatPanel's onMessageReceived
+  // callback — so chat messages stopped appearing on the chat screen.
   useEffect(() => {
     const checkUser = () => {
-      console.log('🔍 SocketProvider: checkUser called');
       const user = getCurrentUser();
-      const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
-      
-      console.log('   └─ User found:', !!user);
-      console.log('   └─ Token found:', !!token);
-      
-      if (user && token) {
-        console.log('✅ Setting userState - socket will connect');
-        setUserState({ user, token });
-      } else {
-        console.log('⚠️ No user/token - clearing userState');
-        setUserState(null);
-      }
+      const token =
+        typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+
+      setUserState((prev) => {
+        if (!user || !token) return prev === null ? prev : null;
+        const nextId = user?._id || user?.id;
+        const prevId = prev?.user?._id || prev?.user?.id;
+        if (prev && prevId === nextId && prev.token === token) {
+          return prev; // identity unchanged → keep ref stable, no reconnect
+        }
+        return { user, token };
+      });
     };
 
-    // Check initially
     checkUser();
 
-    // Listen for storage changes (login/logout in other tabs)
     window.addEventListener('storage', checkUser);
-    
-    // Custom event for same-tab login
     window.addEventListener('userLoggedIn', checkUser);
 
     return () => {
@@ -50,40 +56,21 @@ export function SocketProvider({ children }) {
     };
   }, []);
 
+  // Connect / reconnect whenever userState changes
   useEffect(() => {
-    console.log('🔌 SocketProvider: Checking for logged-in user...');
-    console.log('   └─ User State:', userState);
-    
-    if (!userState) {
-      console.log('⚠️ No user found, socket not connected');
-      return;
-    }
+    if (!userState) return;
 
     const { user, token } = userState;
 
-    console.log('✅ User found, connecting socket...');
-    console.log('   └─ User ID:', user._id);
-    
-    // Connect socket for notifications
     chatSocketService.connect({
-      baseUrl: 'http://localhost:5000',
+      baseUrl: SOCKET_BASE_URL,
       path: '/api/socket.io',
-      roomId: user._id, // Use user ID as room ID
+      roomId: user._id,
       userId: user._id,
-      serviceId: null, // No service ID for login connection
+      serviceId: null,
       authToken: token,
+
       onNotificationReceived: (data) => {
-        console.log('📬 NOTIFICATION RECEIVED (Global - Original Data):', data);
-        
-        console.log('🎨 About to call showToast with:', {
-          type: data.type || 'general',
-          title: data.title || 'New Notification',
-          message: data.message || '',
-          subtitle: data.projectTitle || data.serviceInfo || '',
-          duration: 5000,
-        });
-        
-        // Show toast notification
         showToast({
           type: data.type || 'general',
           title: data.title || 'New Notification',
@@ -91,9 +78,10 @@ export function SocketProvider({ children }) {
           subtitle: data.projectTitle || data.serviceInfo || '',
           duration: 5000,
         });
-          
-          // Add to notifications array
-          setNotifications(prev => [...prev, {
+
+        setNotifications((prev) => [
+          ...prev,
+          {
             id: data.messageId || Date.now(),
             type: data.type,
             title: data.title,
@@ -104,44 +92,47 @@ export function SocketProvider({ children }) {
             serviceId: data.serviceId,
             createdAt: new Date(),
             read: false,
-          }]);
+          },
+        ]);
 
-          // Show browser notification if permitted
-          if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
-            new Notification(data.title || 'New Notification', {
-              body: data.message,
-              icon: '/favicon.svg',
-            });
-          }
-        },
-        onMessageReceived: (data) => {
-          // This receives transformed message data for chat updates
-          console.log('💬 Chat message received (transformed):', data);
-        },
-        onConnected: () => {
-          console.log('🟢 Socket connected on login');
-          setIsConnected(true);
-        },
-        onDisconnected: () => {
-          console.log('🔴 Socket disconnected');
-          setIsConnected(false);
-        },
-        onError: (error) => {
-          console.error('❌ Socket error:', error);
-        },
-      });
+        // Browser push notification (only if permission already granted)
+        if (
+          typeof window !== 'undefined' &&
+          'Notification' in window &&
+          Notification.permission === 'granted'
+        ) {
+          new Notification(data.title || 'New Notification', {
+            body: data.message,
+            icon: '/favicon.svg',
+          });
+        }
+      },
 
-      // Request notification permission
-      if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'default') {
-        Notification.requestPermission();
-      }
+      // SOCKET_CALLBACK_PRESERVE_FIX_V1: don't pass onMessageReceived /
+      // onError here. chatSocketService preserves any existing callback when
+      // the new config omits it — that lets ChatPanel keep its own message
+      // handler across SocketProvider reconnects.
 
-    // Cleanup on unmount
-    return () => {
-      console.log('🔌 SocketProvider: Cleaning up socket connection...');
-      // Don't disconnect here, let logout handle it
-    };
-  }, [userState]); // Re-run when userState changes (login/logout)
+      onConnected: () => {
+        setIsConnected(true);
+      },
+
+      onDisconnected: () => {
+        setIsConnected(false);
+      },
+    });
+
+    // Request browser notification permission on first connect
+    if (
+      typeof window !== 'undefined' &&
+      'Notification' in window &&
+      Notification.permission === 'default'
+    ) {
+      Notification.requestPermission();
+    }
+
+    // Cleanup handled by logout flow, not unmount, to prevent ghost disconnects
+  }, [userState]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <SocketContext.Provider value={{ isConnected, notifications }}>

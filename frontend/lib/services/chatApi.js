@@ -19,8 +19,6 @@ export const getChatMessages = async (customerId, serviceId, bookingId) => {
     console.log('   └─ Service ID:', serviceId);
     const response = await axiosInstance.get(`/chat/messages/${customerId}`, {
       params: { serviceId, ...(bookingId ? { bookingId } : {}) },
-      // legacy callers may have set params via custom adapter — ignore
-      params: { serviceId },
     });
     console.log('✅ API: Chat messages response:', response.data);
     // Return the full envelope { success, data, meta } so callers can rely on shape
@@ -60,13 +58,17 @@ export const getChatMessages = async (customerId, serviceId, bookingId) => {
  * @param {number} firstMsg - Optional: 1 if first message without PM assigned
  * @returns {Promise} - Send message response
  */
-export const sendTextMessage = async (customerId, message, serviceId, firstMsg = null) => {
+export const sendTextMessage = async (customerId, message, serviceId, firstMsg = null, bookingId = null) => {
   try {
     const body = {
       msg: message,
       msg_type: 0, // 0 = text message
       serviceId,
     };
+
+    if (bookingId) {
+      body.bookingId = bookingId;
+    }
 
     if (firstMsg !== null) {
       body.first_msg = firstMsg;
@@ -106,7 +108,8 @@ export const sendMessageWithAttachment = async (
   serviceId,
   message = '',
   msgType = 1,
-  firstMsg = null
+  firstMsg = null,
+  bookingId = null
 ) => {
   try {
     const formData = new FormData();
@@ -114,6 +117,10 @@ export const sendMessageWithAttachment = async (
     formData.append('serviceId', serviceId);
     formData.append('msg_type', msgType);
     formData.append('msg', message);
+
+    if (bookingId) {
+      formData.append('bookingId', bookingId);
+    }
 
     if (firstMsg !== null) {
       formData.append('first_msg', firstMsg);

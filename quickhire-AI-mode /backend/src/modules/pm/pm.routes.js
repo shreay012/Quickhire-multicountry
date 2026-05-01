@@ -386,15 +386,23 @@ r.post('/bookings/:id/messages', validate(sendMsgSchema), asyncHandler(async (re
   };
   const ins = await chatCol().insertOne(doc);
   const message = { ...doc, _id: ins.insertedId };
-  // Live broadcast
+  // Live broadcast to the booking room (anyone explicitly joined)
   try { emitTo(roomId, 'new-message', message); } catch {}
-  // Notify customer + resource
+  // CHAT_FANOUT_FIX_V1: also push directly to each participant's personal
+  // user_<id> room so clients still receive the message even if they haven't
+  // joined the booking_<id> room (e.g. global SocketProvider clobbered the
+  // ChatPanel subscription on a reconnect).
   const recipients = [job.userId, job.resourceId].filter(Boolean).map(String);
-  recipients.forEach((uid) => enqueueNotification({
-    userId: uid, type: 'chat_message',
-    title: 'New chat message', body: req.body.msg.slice(0, 120),
-    data: { bookingId: String(job._id) },
-  }).catch(() => {}));
+  recipients.forEach((uid) => {
+    try { emitTo(`user_${uid}`, 'message:new', message); } catch {}
+    enqueueNotification({
+      userId: uid, type: 'chat_message',
+      title: 'New chat message', body: req.body.msg.slice(0, 120),
+      data: { bookingId: String(job._id) },
+    }).catch(() => {});
+  });
+  // Admin observers (auto-joined to role_admin on connect)
+  try { emitTo('role_admin', 'message:new', message); } catch {}
   res.status(201).json({ success: true, data: message });
 }));
 

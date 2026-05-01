@@ -235,7 +235,7 @@ const ChatPanel = ({
     setMessages((prev) => [...prev, optimisticMessage]);
 
     try {
-      const response = await sendTextMessage(customerId, messageText, serviceId, firstMsg);
+      const response = await sendTextMessage(customerId, messageText, serviceId, firstMsg, bookingId);
 
       if (response.success && response.data) {
         const actualMessage = parseMessageData(response.data);
@@ -276,7 +276,7 @@ const ChatPanel = ({
     try {
       const customerId = adminId && adminId.trim() ? adminId : serviceId;
       const firstMsg = !adminId || !adminId.trim() ? 1 : null;
-      const response = await sendMessageWithAttachment(customerId, file, serviceId, "", 1, firstMsg);
+      const response = await sendMessageWithAttachment(customerId, file, serviceId, "", 1, firstMsg, bookingId);
       if (response.success && response.data) {
         const newMessage = parseMessageData(response.data);
         newMessage.isFromCurrentUser = true;
