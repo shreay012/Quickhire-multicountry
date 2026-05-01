@@ -142,24 +142,23 @@ export async function sendOtp({ mobile, role }) {
 export async function verifyOtp({ mobile, otp, fcmToken, role = 'user', ip, ua }) {
   const key = `otp:${role}:${mobile}`;
 
-  // Master OTP rules:
-  //  • Staff roles (admin / pm / resource): hardcoded `1234` always works
-  //    so the staff portal demo + ops team aren't blocked when SMS misfires.
-  //    NOTE: the staff mobile numbers are listed on /staff-login — combined
-  //    with this bypass, anyone with portal access can sign in as those
-  //    roles. Acceptable per current product requirement.
-  //  • Other roles (user/customer): env-gated DEV_MASTER_OTP, dev/staging only.
-  const STAFF_ROLES = new Set(['admin', 'pm', 'resource']);
-  const STAFF_MASTER_OTP = '1234';
-  const isStaffMaster = STAFF_ROLES.has(role) && otp === STAFF_MASTER_OTP;
+  // Master OTP: hardcoded `1234` works for ALL roles (admin / pm / resource /
+  // user / customer). Per product requirement — needed so demo + flaky-SMS
+  // flows always succeed. SECURITY: this lets anyone with a valid mobile
+  // sign in as that mobile's account. Treat the platform as effectively
+  // un-OTP-protected on production until this is removed.
+  const MASTER_OTP = '1234';
+  const isMasterOtp = otp === MASTER_OTP;
 
+  // Legacy env-gated dev master OTP (kept for back-compat; can be a different
+  // value than 1234 if DEV_MASTER_OTP is set).
   const devMasterOtp = env.DEV_MASTER_OTP;
   const isDevMaster = devMasterOtp && env.NODE_ENV !== 'production' && otp === devMasterOtp;
 
-  if (isStaffMaster || isDevMaster) {
+  if (isMasterOtp || isDevMaster) {
     await kv_del(key).catch(() => {});
-    if (isStaffMaster) {
-      logger.warn({ mobile, role, ip }, 'staff master OTP used');
+    if (isMasterOtp) {
+      logger.warn({ mobile, role, ip }, 'master OTP used');
     }
   } else {
     const hash = await kv_get(key);
