@@ -2,11 +2,12 @@ services:
   # ── QuickHire Backend ────────────────────────────────────────────────────
   - type: web
     name: quickhire-backend
-    runtime: docker
-    dockerfilePath: ./quickhire-AI-mode /backend/Dockerfile
-    dockerContext: ./quickhire-AI-mode /backend
+    runtime: node
     region: singapore
     plan: starter
+    rootDir: "quickhire-AI-mode /backend"
+    buildCommand: npm install --omit=dev
+    startCommand: node src/server.js
     healthCheckPath: /healthz
     envVars:
       - key: NODE_ENV
@@ -20,7 +21,7 @@ services:
       - key: REDIS_URL
         sync: false          # set in Render dashboard
       - key: JWT_PRIVATE_KEY
-        sync: false          # RS256 private key — set in Render dashboard
+        sync: false          # RS256 private key — paste in Render dashboard
       - key: JWT_ALGORITHM
         value: RS256
       - key: JWT_ACCESS_TTL
@@ -32,7 +33,7 @@ services:
       - key: JWT_AUDIENCE
         value: quickhire-api
       - key: ALLOWED_ORIGINS
-        sync: false          # comma-separated list of allowed frontend origins
+        value: https://qhfixed.vercel.app
       - key: LOG_LEVEL
         value: info
       - key: SMS_PROVIDER
@@ -41,7 +42,7 @@ services:
         value: 120
       - key: AWS_REGION
         value: ap-south-1
-      # Payment gateways (set in dashboard)
+      # Payment gateways — set in Render dashboard
       - key: RAZORPAY_KEY_ID
         sync: false
       - key: RAZORPAY_KEY_SECRET
