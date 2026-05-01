@@ -1,13 +1,13 @@
 'use client';
 
 import { createContext, useContext, useEffect, useState } from 'react';
+import toast from 'react-hot-toast';
 import chatSocketService from '@/lib/services/chatSocketService';
 import { getCurrentUser } from '@/lib/utils/userHelpers';
 import {
   playNotificationSound,
   unlockNotificationSound,
 } from '@/lib/utils/notificationSound';
-import { useToast } from './ToastProvider';
 
 // Resolve the active session — accepts both customer (`token` / `user`) and
 // staff (`qh_staff_token` / `qh_staff_user`) credentials. Staff sessions take
@@ -46,7 +46,6 @@ export function SocketProvider({ children }) {
   const [isConnected, setIsConnected] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [userState, setUserState] = useState(null);
-  const { showToast } = useToast();
 
   // Monitor localStorage for session changes (customer + staff login / logout)
   // SOCKET_RECONNECT_FIX_V1: only update userState when the underlying identity
@@ -111,13 +110,31 @@ export function SocketProvider({ children }) {
         // Audible chime on every incoming notification (regardless of role)
         playNotificationSound();
 
-        showToast({
-          type: data.type || 'general',
-          title: data.title || 'New Notification',
-          message: data.message || data.body || '',
-          subtitle: data.projectTitle || data.serviceInfo || '',
-          duration: 5000,
-        });
+        const title = data.title || 'New Notification';
+        const body = data.message || data.body || '';
+        // Render via react-hot-toast (the global <Toaster /> is mounted in
+        // ClientProviders). Custom node so we can show title + body.
+        toast.custom(
+          (t) => (
+            <div
+              className={`bg-white rounded-xl shadow-lg p-4 flex items-start gap-3 max-w-sm ring-1 ring-[#E5F1E2] ${
+                t.visible ? 'animate-enter' : 'animate-leave'
+              }`}
+              onClick={() => toast.dismiss(t.id)}
+            >
+              <div className="flex-shrink-0 w-9 h-9 rounded-full bg-[#F2F9F1] flex items-center justify-center">
+                <svg className="w-5 h-5 text-[#45A735]" fill="currentColor" viewBox="0 0 20 20">
+                  <path d="M10 2a6 6 0 00-6 6v3.586l-.707.707A1 1 0 004 14h12a1 1 0 00.707-1.707L16 11.586V8a6 6 0 00-6-6zM10 18a3 3 0 01-3-3h6a3 3 0 01-3 3z" />
+                </svg>
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-[#26472B] truncate">{title}</p>
+                {body ? <p className="text-xs text-[#636363] mt-0.5 break-words">{body}</p> : null}
+              </div>
+            </div>
+          ),
+          { duration: 5000, position: 'top-right' },
+        );
 
         setNotifications((prev) => [
           ...prev,
