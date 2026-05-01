@@ -55,18 +55,6 @@ const ChatPanel = ({
     scrollToBottom();
   }, [messages, isTyping]);
 
-  // Debug render state
-  useEffect(() => {
-    console.log(' ChatPanel render state:', {
-      loading,
-      error: !!error,
-      messagesCount: messages.length,
-      socketConnected,
-      bookingId,
-      serviceId
-    });
-  }, [loading, error, messages.length, socketConnected, bookingId, serviceId]);
-
   // Load chat messages
   const loadMessages = useCallback(async () => {
     if (!bookingId || !serviceId) {
@@ -79,87 +67,38 @@ const ChatPanel = ({
     setError(null);
 
     try {
-      // Determine customerId: Use PM ID if assigned, otherwise use Service ID
       const customerId = adminId && adminId.trim() ? adminId : serviceId;
-
-      console.log("🔄 Loading chat messages...");
-      console.log("   BookingId:", bookingId);
-      console.log("   AdminId (PM):", adminId || "Not assigned");
-      console.log("   ServiceId:", serviceId);
-      console.log("   ➡️ Using Customer ID:", customerId);
-
       const response = await getChatMessages(customerId, serviceId);
 
       if (response.success && response.data) {
         const parsedMessages = response.data
           .map((msg) => {
             const parsed = parseMessageData(msg);
-            // Determine if message is from current user
-            const isMine = isMessageFromCurrentUser(
-              parsed.senderId,
-              currentUserId,
-            );
-            parsed.isFromCurrentUser = isMine;
-
-            // Debug log for message detection
-            console.log("📧 Message parsing:", {
-              id: parsed.id,
-              from: parsed.senderName,
-              senderId: parsed.senderId,
-              senderIdType: typeof parsed.senderId,
-              currentUserId: currentUserId,
-              currentUserIdType: typeof currentUserId,
-              isFromCurrentUser: isMine,
-              text: parsed.message.substring(0, 30),
-            });
-
+            parsed.isFromCurrentUser = isMessageFromCurrentUser(parsed.senderId, currentUserId);
             return parsed;
           })
           .sort((a, b) => a.timestamp - b.timestamp);
 
-        // Filter out duplicates by id to prevent React key errors
-        const uniqueMessages = parsedMessages.filter((m, i, arr) => arr.findIndex(x => x.id === m.id) === i);
-
-        // Check if there are new messages (for polling)
-        const hasNewMessages =
-          uniqueMessages.length > messages.length ||
-          (uniqueMessages.length > 0 &&
-            lastMessageIdRef.current !==
-              uniqueMessages[uniqueMessages.length - 1]?.id);
-
-        if (hasNewMessages) {
-          console.log(
-            "✨ New messages detected:",
-            uniqueMessages.length - messages.length,
-          );
-        }
+        // Deduplicate by id
+        const uniqueMessages = parsedMessages.filter(
+          (m, i, arr) => arr.findIndex((x) => x.id === m.id) === i,
+        );
 
         setMessages(uniqueMessages);
 
-        // Store last message ID for comparison
         if (uniqueMessages.length > 0) {
-          lastMessageIdRef.current =
-            uniqueMessages[uniqueMessages.length - 1].id;
+          lastMessageIdRef.current = uniqueMessages[uniqueMessages.length - 1].id;
         }
-        
-        console.log('✅ Messages loaded:', uniqueMessages.length);
-        console.log('📊 State after setMessages - loading:', false, 'messages.length:', uniqueMessages.length);
       } else {
-        console.warn("⚠️ No messages found or backend not ready");
         setMessages([]);
       }
     } catch (err) {
-      console.error("❌ Error loading messages:", err);
-
-      // Don't show error for 500/404 - backend might not be ready yet
+      // Don't block UI for 500/404 — backend may not be ready
       if (err.response?.status === 500 || err.response?.status === 404) {
-        console.warn(
-          "⚠️ Backend chat endpoints not ready. Chat UI will still load.",
-        );
-        setError(null); // Clear error - let user try to send messages
+        setError(null);
         setMessages([]);
       } else {
-        setError("Failed to load messages. Backend may not be ready yet.");
+        setError("Failed to load messages. Please try again.");
         setMessages([]);
       }
     } finally {
@@ -167,29 +106,18 @@ const ChatPanel = ({
     }
   }, [bookingId, adminId, serviceId, currentUserId]);
 
-  // Polling fallback when socket is disconnected
+  // Polling fallback:
+  //  • When socket is DISCONNECTED → poll every 5 s (real-time fallback)
+  //  • When socket is CONNECTED    → poll every 30 s (catch any missed events)
   useEffect(() => {
-    // Only poll if socket is disconnected and we have required data
-    if (!socketConnected && bookingId && serviceId) {
-      console.log(
-        "🔄 Socket disconnected - enabling polling fallback (every 5 seconds)",
-      );
+    if (!bookingId || !serviceId) return;
 
-      // Poll every 5 seconds
-      //   pollingIntervalRef.current = setInterval(() => {
-      //     console.log('📡 Polling for new messages...');
-      //     loadMessages();
-      //   }, 5000);
-    } else if (socketConnected) {
-      console.log("✅ Socket connected - disabling polling");
-      // Clear polling if socket connects
-      if (pollingIntervalRef.current) {
-        clearInterval(pollingIntervalRef.current);
-        pollingIntervalRef.current = null;
-      }
-    }
+    const interval = socketConnected ? 30_000 : 5_000;
 
-    // Cleanup
+    pollingIntervalRef.current = setInterval(() => {
+      loadMessages();
+    }, interval);
+
     return () => {
       if (pollingIntervalRef.current) {
         clearInterval(pollingIntervalRef.current);
@@ -200,192 +128,69 @@ const ChatPanel = ({
 
   // Initialize WebSocket connection
   const initializeSocket = useCallback(() => {
-    if (!bookingId || !serviceId || !currentUserId) {
-      console.warn("⚠️ Missing required data for socket connection");
-      console.warn("   └─ bookingId:", bookingId);
-      console.warn("   └─ serviceId:", serviceId);
-      console.warn("   └─ currentUserId:", currentUserId);
-      setError("Cannot connect socket: Missing booking/service/user ID");
-      return;
-    }
+    if (!bookingId || !serviceId || !currentUserId) return;
+    if (!authToken || authToken === "Bearer test-token-123") return;
 
-    if (!authToken || authToken === "Bearer test-token-123") {
-      console.error("❌ Invalid or test auth token - Socket.IO will fail");
-      console.error("   └─ Token:", authToken);
-      setError(
-        "Socket connection requires valid authentication token. Please login first.",
-      );
-      return;
-    }
-
-    console.log("🔌 Initializing socket connection...");
-    console.log("   └─ Base URL:", baseUrl);
-    console.log("   └─ Booking ID:", bookingId);
-    console.log("   └─ Service ID:", serviceId);
-    console.log("   └─ Current User ID:", currentUserId);
-    console.log("   └─ Admin ID:", adminId || "Not assigned");
-    console.log(
-      "   └─ Auth Token:",
-      authToken ? "Present (" + authToken.length + " chars)" : "Missing",
-    );
+    // GROUP_CHAT_FIX_V1: prefer booking-scoped room so customer + PM +
+    // resource + admin converge. Fall back to legacy pairwise room only
+    // when bookingId is missing (e.g. pre-booking service browsing).
+    const groupRoomId = bookingId
+      ? `booking_${bookingId}`
+      : (adminId && adminId.trim() && adminId !== serviceId)
+        ? `${adminId}_service_${serviceId}`
+        : `service_${serviceId}_pending_${currentUserId}`;
 
     chatSocketService.connect({
       baseUrl,
-      // Pass canonical backend roomId so the socket joins the same room
-      // the REST endpoint will broadcast into.
-      roomId: (adminId && adminId.trim() && adminId !== serviceId)
-        ? `${adminId}_service_${serviceId}`
-        : `service_${serviceId}_pending_${currentUserId}`,
+      roomId: groupRoomId,
       userId: currentUserId,
-      serviceId, // kept for logging only; canonical roomId already includes it
+      serviceId,
       authToken,
       onMessageReceived: (data) => {
-        console.log("📨 New message received via socket callback:", data);
-
         const newMessage = parseMessageData(data);
-        // Use helper function for consistent comparison
-        newMessage.isFromCurrentUser = isMessageFromCurrentUser(
-          newMessage.senderId,
-          currentUserId,
-        );
-
-        console.log("📝 Parsed socket message:", {
-          id: newMessage.id,
-          from: newMessage.senderName,
-          senderId: newMessage.senderId,
-          currentUserId: currentUserId,
-          isFromCurrentUser: newMessage.isFromCurrentUser,
-          text: newMessage.message.substring(0, 30),
-        });
+        newMessage.isFromCurrentUser = isMessageFromCurrentUser(newMessage.senderId, currentUserId);
 
         setMessages((prev) => {
-          // Check if message already exists
           const exists = prev.some(
-            (msg) =>
-              msg.id === newMessage.id ||
-              msg.messageId === newMessage.messageId,
+            (msg) => msg.id === newMessage.id || msg.messageId === newMessage.messageId,
           );
-          if (exists) {
-            console.log("⚠️ Message already exists, skipping");
-            return prev;
-          }
-          console.log("✅ Adding new message to chat");
-          return [...prev, newMessage].sort(
-            (a, b) => a.timestamp - b.timestamp,
-          );
+          if (exists) return prev;
+          return [...prev, newMessage].sort((a, b) => a.timestamp - b.timestamp);
         });
       },
-      onRefreshMessages: () => {
-        console.log("🔄 Refresh messages callback triggered");
-        loadMessages();
-      },
-      onConnected: () => {
-        console.log("✅ Socket connected successfully");
-        setSocketConnected(true);
-      },
-      onDisconnected: () => {
-        console.log("❌ Socket disconnected");
-        setSocketConnected(false);
-      },
-      onError: (error) => {
-        console.error("❌ Socket error:", error);
-        setSocketConnected(false);
-
-        // Show user-friendly error message
-        if (
-          error.includes("Connection error") ||
-          error.includes("connect_error")
-        ) {
-          setError(
-            "Socket.IO server not responding. Check: \n1. Backend Socket.IO server is running\n2. Server is at: " +
-              baseUrl +
-              "/api/socket.io\n3. CORS is configured for localhost:3000\n\nUsing polling fallback for now.",
-          );
-        } else if (error.includes("Unauthorized") || error.includes("403")) {
-          setError("Socket authentication failed. Token may be invalid.");
-        } else {
-          setError("Socket connection failed: " + error);
-        }
-      },
+      onRefreshMessages: () => { loadMessages(); },
+      onConnected: () => { setSocketConnected(true); },
+      onDisconnected: () => { setSocketConnected(false); },
+      onError: () => { setSocketConnected(false); },
       onTypingStatusReceived: (senderId, isTyping, typingData) => {
-        console.log("⌨️ Typing status received:", {
-          senderId,
-          isTyping,
-          typingData,
-        });
-
-        // Only show typing indicator if it's from the admin/PM and they're typing
         if (senderId === adminId && isTyping) {
           setIsTyping(true);
-          setTypingUser({
-            name: typingData.userName || "PM",
-            initials: getInitials(typingData.userName || "PM"),
-          });
-
-          // Clear previous timeout
-          if (typingTimeoutRef.current) {
-            clearTimeout(typingTimeoutRef.current);
-          }
-          if (pollingIntervalRef.current) {
-            clearInterval(pollingIntervalRef.current);
-          }
-
-          // Auto-hide typing indicator after 5 seconds
-          typingTimeoutRef.current = setTimeout(() => {
-            setIsTyping(false);
-            setTypingUser(null);
-          }, 5000);
+          setTypingUser({ name: typingData.userName || "PM", initials: getInitials(typingData.userName || "PM") });
+          if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+          typingTimeoutRef.current = setTimeout(() => { setIsTyping(false); setTypingUser(null); }, 5000);
         } else if (senderId === adminId && !isTyping) {
           setIsTyping(false);
           setTypingUser(null);
-
-          if (typingTimeoutRef.current) {
-            clearTimeout(typingTimeoutRef.current);
-          }
+          if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
         }
       },
     });
   }, [bookingId, serviceId, currentUserId, adminId, authToken, baseUrl]);
 
-  // Load messages on mount
   // Load messages and auto-connect socket on mount
   useEffect(() => {
     loadMessages();
 
-    // Auto-connect socket on mount (only once)
-    if (
-      !hasInitialized.current &&
-      bookingId &&
-      serviceId &&
-      currentUserId &&
-      authToken
-    ) {
-      console.log("🚀 Auto-connecting socket on component mount...");
+    if (!hasInitialized.current && bookingId && serviceId && currentUserId && authToken) {
       hasInitialized.current = true;
-      // Delay socket init slightly to let messages load first
-      setTimeout(() => {
-        initializeSocket();
-      }, 500);
+      setTimeout(() => { initializeSocket(); }, 500);
     }
 
     return () => {
-      // Cleanup socket on unmount
-      // chatSocketService.disconnect();
-      if (typingTimeoutRef.current) {
-        clearTimeout(typingTimeoutRef.current);
-      }
-      if (pollingIntervalRef.current) {
-        clearInterval(pollingIntervalRef.current);
-      }
+      if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+      if (pollingIntervalRef.current) clearInterval(pollingIntervalRef.current);
     };
-  }, [
-    loadMessages,
-    bookingId,
-    serviceId,
-    currentUserId,
-    authToken,
-    initializeSocket,
-  ]);
+  }, [loadMessages, bookingId, serviceId, currentUserId, authToken, initializeSocket]);
 
   // Initialize socket when manual connect is triggered
   useEffect(() => {
@@ -395,83 +200,52 @@ const ChatPanel = ({
     }
   }, [manualConnect, initializeSocket]);
 
-  // Watch for external trigger to connect socket (from test page button)
+  // Watch for external trigger to connect socket
   useEffect(() => {
     if (triggerSocketConnect > 0) {
-      console.log(
-        "🔔 External socket connection trigger received (count:",
-        triggerSocketConnect,
-        ")",
-      );
-      handleConnectSocket();
+      if (!hasInitialized.current) {
+        hasInitialized.current = true;
+        setManualConnect(true);
+      }
     }
   }, [triggerSocketConnect]);
-
-  // Manual socket connection handler
-  const handleConnectSocket = () => {
-    console.log("🔘 Manual socket connection requested");
-    console.log("   └─ Booking ID:", bookingId);
-    console.log("   └─ Service ID:", serviceId);
-    console.log("   └─ User ID:", currentUserId);
-    console.log("   └─ Auth Token:", authToken ? "Present" : "Missing");
-    if (!hasInitialized.current) {
-      hasInitialized.current = true;
-      setManualConnect(true);
-    }
-  };
 
   // Handle sending text message
   const handleSendMessage = async (messageText) => {
     if (!messageText.trim()) return;
 
+    const customerId = adminId && adminId.trim() ? adminId : serviceId;
+    const firstMsg = !adminId || !adminId.trim() ? 1 : null;
+
+    // Optimistic UI update
+    const optimisticId = `temp_${Date.now()}`;
+    const optimisticMessage = {
+      id: optimisticId,
+      senderName: "You",
+      senderInitials: getInitials("You"),
+      senderId: currentUserId,
+      message: messageText,
+      timestamp: new Date(),
+      isFromCurrentUser: true,
+      msgType: 0,
+    };
+    setMessages((prev) => [...prev, optimisticMessage]);
+
     try {
-      // Determine customerId: Use PM ID if assigned, otherwise use Service ID
-      const customerId = adminId && adminId.trim() ? adminId : serviceId;
-      const firstMsg = !adminId || !adminId.trim() ? 1 : null;
-
-      console.log("📤 Sending message...");
-      console.log("   Message:", messageText);
-      console.log("   BookingId:", bookingId);
-      console.log("   ServiceId:", serviceId);
-      console.log("   AdminId (PM):", adminId || "Not assigned");
-      console.log("   ➡️ Using Customer ID:", customerId);
-      console.log("   FirstMsg:", firstMsg);
-
-      // Optimistic UI update
-      const optimisticMessage = {
-        id: `temp_${Date.now()}`,
-        senderName: "You",
-        senderInitials: getInitials("You"),
-        senderId: currentUserId, // Add senderId for proper matching
-        message: messageText,
-        timestamp: new Date(),
-        isFromCurrentUser: true,
-        msgType: 0,
-      };
-
-      setMessages((prev) => [...prev, optimisticMessage]);
-
-      // Send via API with customerId (PM ID or Service ID)
-      const response = await sendTextMessage(
-        customerId,
-        messageText,
-        serviceId,
-        firstMsg,
-      );
+      const response = await sendTextMessage(customerId, messageText, serviceId, firstMsg);
 
       if (response.success && response.data) {
-        // Replace optimistic message with actual message
         const actualMessage = parseMessageData(response.data);
         actualMessage.isFromCurrentUser = true;
 
         setMessages((prev) =>
           prev
-            .filter((msg) => msg.id !== optimisticMessage.id)
+            .filter((msg) => msg.id !== optimisticId)
             .concat(actualMessage)
             .sort((a, b) => a.timestamp - b.timestamp),
         );
 
-        // Send via socket for real-time delivery
+        // Notify other participants via socket
         if (socketConnected) {
           chatSocketService.sendMessage({
             message: messageText,
@@ -481,73 +255,34 @@ const ChatPanel = ({
           });
         }
 
-        console.log("✅ Message sent successfully");
-        setError(null); // Clear any previous errors
+        setError(null);
       } else {
-        // Remove optimistic message on failure
-        setMessages((prev) =>
-          prev.filter((msg) => msg.id !== optimisticMessage.id),
-        );
-        setError("Failed to send message - backend may not be ready");
+        setMessages((prev) => prev.filter((msg) => msg.id !== optimisticId));
+        setError("Failed to send message.");
       }
     } catch (err) {
-      console.error("❌ Error sending message:", err);
-
-      // Check if it's a backend error (500/404)
-      if (err.response?.status === 500 || err.response?.status === 404) {
-        console.warn(
-          "⚠️ Backend not ready. Keeping message in UI for demo purposes.",
-        );
-        // Keep the optimistic message for UI demo
-        setError("Backend not ready - message shown for UI demo only");
-      } else {
-        // Remove optimistic message only for other errors
-        setMessages((prev) =>
-          prev.filter((msg) => !msg.id.startsWith("temp_")),
-        );
-        setError("Failed to send message. Please check your connection.");
-      }
+      console.error("Error sending message:", err);
+      setMessages((prev) => prev.filter((msg) => !msg.id.startsWith("temp_")));
+      setError("Failed to send message. Please check your connection.");
     }
   };
 
   // Handle sending attachment
   const handleSendAttachment = async (file) => {
     if (!file) return;
-
     try {
-      // Determine customerId: Use PM ID if assigned, otherwise use Service ID
       const customerId = adminId && adminId.trim() ? adminId : serviceId;
       const firstMsg = !adminId || !adminId.trim() ? 1 : null;
-
-      console.log("📎 Sending attachment...");
-      console.log("   File:", file.name);
-      console.log("   ServiceId:", serviceId);
-      console.log("   AdminId (PM):", adminId || "Not assigned");
-      console.log("   ➡️ Using Customer ID:", customerId);
-
-      const response = await sendMessageWithAttachment(
-        customerId,
-        file,
-        serviceId,
-        "",
-        1,
-        firstMsg,
-      );
-
+      const response = await sendMessageWithAttachment(customerId, file, serviceId, "", 1, firstMsg);
       if (response.success && response.data) {
         const newMessage = parseMessageData(response.data);
         newMessage.isFromCurrentUser = true;
-
-        setMessages((prev) =>
-          [...prev, newMessage].sort((a, b) => a.timestamp - b.timestamp),
-        );
-
-        console.log("✅ Attachment sent successfully");
+        setMessages((prev) => [...prev, newMessage].sort((a, b) => a.timestamp - b.timestamp));
       } else {
-        setError("Failed to send attachment");
+        setError("Failed to send attachment.");
       }
     } catch (err) {
-      console.error("❌ Error sending attachment:", err);
+      console.error("Error sending attachment:", err);
       setError("Failed to send attachment. Please try again.");
     }
   };
@@ -555,19 +290,11 @@ const ChatPanel = ({
   // Handle typing status change
   const handleTypingChange = async (isTyping) => {
     if (!socketConnected) return;
-
     try {
-      // Determine customerId: Use PM ID if assigned, otherwise use Service ID
       const customerId = adminId && adminId.trim() ? adminId : serviceId;
-
-      // Send via socket
       chatSocketService.sendTypingStatus(isTyping, serviceId);
-
-      // Also send via API using customerId
       await sendTypingStatus(customerId, isTyping, serviceId);
-    } catch (err) {
-      console.error("❌ Error sending typing status:", err);
-    }
+    } catch (_) { /* non-fatal */ }
   };
 
   return (

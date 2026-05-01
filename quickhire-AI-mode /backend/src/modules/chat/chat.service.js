@@ -34,10 +34,27 @@ export function roomIdFor({ pmId, serviceId, userId }) {
   return `service_${serviceId}_pending_${userId}`;
 }
 
+// GROUP_CHAT_FIX_V1: booking-scoped rooms — all 4 roles converge on `booking_<id>`.
 export async function canJoinRoom(user, roomId) {
   if (!roomId) return false;
   if (user.role === 'admin') return true;
-  // pmId_service_serviceId  OR  service_X_pending_Y
+
+  // NEW canonical group room: booking_<bookingId>
+  // Membership = customer (userId) OR assigned PM (pmId) OR assigned resource (resourceId).
+  if (roomId.startsWith('booking_')) {
+    const bookingId = roomId.slice('booking_'.length);
+    if (!/^[0-9a-f]{24}$/i.test(bookingId)) return false;
+    const booking = await getDb().collection('bookings').findOne(
+      { _id: new ObjectId(bookingId) },
+      { projection: { userId: 1, pmId: 1, resourceId: 1 } },
+    );
+    if (!booking) return false;
+    const uid = String(user.id);
+    return [booking.userId, booking.pmId, booking.resourceId]
+      .filter(Boolean).map(String).includes(uid);
+  }
+
+  // ── Legacy pairwise rooms (kept for backward compatibility) ────────────
   if (roomId.startsWith('service_') && roomId.includes('_pending_')) {
     return roomId.endsWith(`_pending_${user.id}`) || user.role === 'pm';
   }
@@ -92,6 +109,30 @@ export async function persistAndBroadcast({ sender, roomId, msgType = 0, msg = '
   // legacy `new_message` alias to avoid duplicate UI bubbles.
   emitTo(roomId, 'new-message', payload);
 
+  // GROUP_CHAT_FIX_V1: when a bookingId is provided, fan-out direct pushes
+  // to every participant's personal room so admin / resource clients that
+  // haven't explicitly joined the chat room still receive the message.
+  if (bookingId) {
+    try {
+      const b = await getDb().collection('bookings').findOne(
+        { _id: new ObjectId(bookingId) },
+        { projection: { userId: 1, pmId: 1, resourceId: 1 } },
+      );
+      if (b) {
+        const ids = [b.userId, b.pmId, b.resourceId].filter(Boolean).map(String);
+        for (const uid of ids) {
+          if (uid !== String(sender.id)) {
+            emitTo(`user_${uid}`, 'message:new', payload);
+          }
+        }
+        // All admins are auto-joined to `role_admin`; cc them on every chat msg.
+        emitTo('role_admin', 'message:new', payload);
+      }
+    } catch (e) {
+      // Non-fatal — primary room broadcast already delivered.
+    }
+  }
+
   // Push notification to "other" participants in the room
   // Naive: derive recipient from roomId convention; admin observer ignored
   notifyOtherParticipants(roomId, sender, message).catch(() => {});
@@ -99,18 +140,37 @@ export async function persistAndBroadcast({ sender, roomId, msgType = 0, msg = '
   return message;
 }
 
+// GROUP_CHAT_FIX_V1_NOTIFY: when the room is booking-scoped, notify every
+// booking participant (customer + pm + resource) plus admins. Falls back to
+// the legacy pairwise logic for older room IDs.
 async function notifyOtherParticipants(roomId, sender, message) {
-  const targets = [];
-  if (roomId.includes('_pending_')) {
+  const targets = new Set();
+
+  if (roomId.startsWith('booking_')) {
+    const bookingIdStr = roomId.slice('booking_'.length);
+    if (/^[0-9a-f]{24}$/i.test(bookingIdStr)) {
+      try {
+        const b = await getDb().collection('bookings').findOne(
+          { _id: new ObjectId(bookingIdStr) },
+          { projection: { userId: 1, pmId: 1, resourceId: 1 } },
+        );
+        if (b) {
+          [b.userId, b.pmId, b.resourceId].filter(Boolean).forEach((id) => {
+            const s = String(id);
+            if (s !== String(sender.id)) targets.add(s);
+          });
+        }
+      } catch (_) { /* ignore — best-effort */ }
+    }
+  } else if (roomId.includes('_pending_')) {
     const userId = roomId.split('_pending_')[1];
-    if (userId !== sender.id) targets.push(userId);
+    if (userId !== String(sender.id)) targets.add(userId);
   } else {
     const [pmId] = roomId.split('_service_');
-    // notify pm if sender isn't pm; notify customer requires booking lookup — skipped for simplicity
-    if (pmId !== sender.id) targets.push(pmId);
+    if (pmId && pmId !== String(sender.id)) targets.add(pmId);
   }
+
   for (const t of targets) {
-    // Direct user push (canonical per 4.2)
     emitTo(`user_${t}`, 'message:new', message);
     await enqueueNotification({
       userId: t,
@@ -118,7 +178,7 @@ async function notifyOtherParticipants(roomId, sender, message) {
       title: 'New message',
       body: message.msg ? message.msg.slice(0, 80) : 'Attachment',
       data: { roomId },
-    });
+    }).catch(() => { /* don't break broadcast on queue failure */ });
   }
 }
 
