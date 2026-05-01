@@ -101,24 +101,23 @@ export function proxy(request) {
     }
   }
 
-  // b) Existing cookie
+  // b) Existing cookie (user's explicit choice from the country switcher)
   if (!detectedCountry) {
     const cookieCountry = cookies.get('qh_country')?.value;
-    if (cookieCountry && /^[A-Z]{2}$/.test(cookieCountry)) {
-      detectedCountry = cookieCountry;
+    if (cookieCountry && COUNTRY_SEGMENTS.has(cookieCountry.toLowerCase())) {
+      detectedCountry = cookieCountry.toUpperCase();
     }
   }
 
-  // c) Cloudflare / Vercel geo header
-  if (!detectedCountry) {
-    const geoHeader =
-      headers.get('cf-ipcountry') || headers.get('x-vercel-ip-country');
-    if (geoHeader && /^[A-Z]{2}$/i.test(geoHeader)) {
-      detectedCountry = geoHeader.toUpperCase();
-    }
-  }
+  // DEFAULT_INDIA_FIX_V1: skip IP-based geolocation entirely. Product wants
+  // every anonymous visitor to land on the India experience by default —
+  // users can still switch via the country picker, which writes the
+  // qh_country cookie that branch (b) above respects on subsequent loads.
+  // Cloudflare/Vercel geo headers were producing inconsistent country
+  // routing (e.g. test users in DE seeing /de/ then breaking on missing
+  // German content); a hard IN default is the simpler, predictable behaviour.
 
-  // d) Hard default
+  // c) Hard default
   if (!detectedCountry) detectedCountry = 'IN';
 
   const region = COUNTRY_REGIONS[detectedCountry] || null;
